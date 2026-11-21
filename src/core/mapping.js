@@ -1,6 +1,6 @@
-// D2: соответствие находок категориям OWASP Top 10 2025, API Top 10 2023, LLM Top 10 2025, ASVS 5.0, WSTG v4.2 и CWE.
-// Правило вычисляется из вида, типа и английского заголовка находки (заголовки переводятся только при выводе). (j) в спецификации — суждение.
-// Строка: top10|api|llm|asvs|wstg|cwe
+// Mapping of findings to OWASP Top 10 2025, API Top 10 2023, LLM Top 10 2025, ASVS 5.0, WSTG v4.2 and CWE categories.
+// The rule is derived from the finding kind, type and English title (titles are translated only on output). (j) in the spec means judgement.
+// Row: top10|api|llm|asvs|wstg|cwe
 import { ROUTE_KINDS } from './scope.js';
 const MAP = {
   'path.admin': 'A01|API5||||284', 'path.debug': 'A02|API8||||489', 'path.files': 'A01|API8||||538', 'path.docs': 'A01|API9||||200', 'path.map': 'A01|API8||||540',

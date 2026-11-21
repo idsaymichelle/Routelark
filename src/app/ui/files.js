@@ -1,5 +1,5 @@
-// Файлы сайта: дерево «хост → папка → файл», просмотр с номерами строк и поиск по всем текстам.
-// Показывается только то, что уже скачано по правилам скана или загружено самой страницей. Запрос только по кнопке «Read metadata».
+// Site files: host -> folder -> file tree, viewer with line numbers, and search across all texts.
+// Shows only what was already downloaded under scan rules or loaded by the page itself. Requests only via the "Read metadata" button.
 import { unpackPacked, decodeLiterals } from '../../core/obfuscation.js';
 import { h, button, copy, copyIcon, download, openInTab } from './dom.js';
 import { fileType, displayText, displayPosition, searchTexts } from '../../core.js';
@@ -11,7 +11,7 @@ const WINDOW = 1000, LONG = 3000;
 const TYPES = [['', 'All types'], ['js', 'JavaScript'], ['source', 'Original sources'], ['json', 'JSON'], ['html', 'HTML'], ['css', 'CSS'], ['map', 'Source maps'], ['image', 'Images'], ['other', 'Other']];
 const size = (n) => (n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : n >= 1024 ? (n / 1024).toFixed(1) + ' KB' : n + ' B');
 
-// Все файлы: скачанные (с текстом) и остальные ресурсы страницы (только сведения из Resource Timing)
+// All files: downloaded (with text) and other page resources (Resource Timing info only)
 export function fileList(app, store) {
   const out = [], seen = new Set();
   for (const [url, v] of store.texts) {
@@ -27,7 +27,7 @@ export function fileList(app, store) {
   }
   return out;
 }
-// Счётчик для меню без сборки всего списка: меню перерисовывается во время скана несколько раз в секунду
+// Menu counter without building the whole list: the menu redraws several times a second during a scan
 export function fileCount(app, store) {
   let n = store.texts.size; const seen = new Set();
   for (const r of (app.page ? app.page.resources : []).concat(app.traffic || [])) if (r.url && !seen.has(r.url) && !store.texts.has(r.url) && /^https?:/.test(r.url)) { seen.add(r.url); n++; }
@@ -38,39 +38,39 @@ function place(f) {
   if (f.source) { const [map, path] = f.url.split('#'); const i = path.lastIndexOf('/'); return { group: t('Sources from {file}', { file: map.replace(/^.*\//, '') }) + (i > 0 ? ' / ' + path.slice(0, i) : ''), name: path.slice(i + 1) || path }; }
   try { const u = new URL(f.url), i = u.pathname.lastIndexOf('/'); return { group: u.host + u.pathname.slice(0, i + 1), name: (u.pathname.slice(i + 1) || '/') + u.search }; } catch (e) { return { group: '', name: f.url }; }
 }
-// SVG в ядре имеет тип xml, но для человека это картинка: попадает в фильтр «Images»
+// SVG has type xml in the core, but to a human it is an image: it goes into the "Images" filter
 const kindOf = (f) => (f.source ? 'source' : f.type === 'xml' && /\.svg(?:$|[?#])/i.test(f.url) ? 'image' : f.type);
 function disp(store, f, raw) {
   if (raw || f.text == null) return f.text;
   const c = store._disp || (store._disp = new Map());
   if (c.has(f.url)) return c.get(f.url);
-  // Кэш форматированных копий ограничен, как и сами тексты: сверх предела форматируется заново при каждом показе
+  // The cache of formatted copies is bounded like the texts: beyond the limit it is reformatted on every view
   const d = displayText(f.text, f.type);
   if ((store._dispBytes || 0) + d.length <= 40e6) { c.set(f.url, d); store._dispBytes = (store._dispBytes || 0) + d.length; }
   return d;
 }
 
-// Поиск в Worker: регулярку, которая зависла на тексте (например (a+)+$), можно остановить по таймеру
+// Search in a Worker: a regex that hangs on a text (e.g. (a+)+$) can be stopped by a timer
 const SEARCH_MS = 8000;
 let current = null;
 function searchAsync(texts, q, o) {
-  if (current) current.cancel(); // новый поиск отменяет предыдущий
+  if (current) current.cancel(); // a new search cancels the previous one
   let w = null, url = null;
   try { url = URL.createObjectURL(new Blob(['const f=' + searchTexts.toString() + ';onmessage=(e)=>postMessage(f(e.data[0],e.data[1],e.data[2]))'], { type: 'text/javascript' })); w = new Worker(url); }
-  catch (e) { if (url) URL.revokeObjectURL(url); return Promise.resolve(searchTexts(texts, q, o)); } // Worker недоступен: поиск в основном потоке
+  catch (e) { if (url) URL.revokeObjectURL(url); return Promise.resolve(searchTexts(texts, q, o)); } // Worker unavailable: search on the main thread
   return new Promise((resolve) => {
     let over = false;
     const done = (r) => { if (over) return; over = true; clearTimeout(timer); w.terminate(); URL.revokeObjectURL(url); if (current && current.w === w) current = null; if (r) resolve(r); };
     const timer = setTimeout(() => done({ results: [], error: 'the search took too long, simplify the regular expression' }), SEARCH_MS);
     current = { w, cancel: () => done(null) };
     w.onmessage = (e) => done(e.data);
-    // Worker не запустился (например, CSP страницы запрещает blob:) — ищем в основном потоке
+    // Worker failed to start (e.g. page CSP forbids blob:): search on the main thread
     w.onerror = (e) => { if (e && e.preventDefault) e.preventDefault(); done(searchTexts(texts, q, o)); };
     w.postMessage([texts, q, o]);
   });
 }
 
-// Метаданные: картинки читаются только по кнопке (один GET того же файла, что уже загрузила страница)
+// Metadata: images are read only on button click (one GET of the same file the page already loaded)
 const META = new Map();
 async function readMeta(f, actions) {
   META.set(f.url, { loading: true }); actions.render();
@@ -79,7 +79,7 @@ async function readMeta(f, actions) {
     const buf = await r.arrayBuffer(), bytes = new Uint8Array(buf);
     const m = (bytes[0] === 0x50 && bytes[1] === 0x4b && await officeMeta(bytes)) || fontMeta(bytes) || fileMeta(bytes);
     if (!m.paths) m.paths = Array.from(new Set(m.fields.flatMap(([, v]) => String(v).match(/[A-Za-z]:\\(?:Users|Documents and Settings)\\[^\\\s"]+|\/(?:Users|home)\/[^/\s"]+/g) || [])));
-    let hash = ''; try { hash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', buf)), (x) => x.toString(16).padStart(2, '0')).join(''); } catch (e) { /* нет crypto.subtle */ }
+    let hash = ''; try { hash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', buf)), (x) => x.toString(16).padStart(2, '0')).join(''); } catch (e) { /* no crypto.subtle */ }
     META.set(f.url, Object.assign(m, { bytes: buf.byteLength, type: r.headers.get('content-type') || '', modified: r.headers.get('last-modified') || '', hash }));
   } catch (e) { META.set(f.url, { error: String(e && e.message || e) }); }
   actions.render();
@@ -102,14 +102,14 @@ export function renderFiles(ctx) {
   const sel = all.find((f) => f.url === fx.sel) || all.find((f) => f.text != null) || all[0];
 
   const runSearch = () => {
-    // Поиск идёт по исходному тексту: без форматирования всех файлов разом, и строки совпадают с «Где найдено»
+    // Search runs on the source text: no formatting of all files at once, and lines match "Where found"
     const texts = all.filter((f) => f.text != null).map((f) => ({ url: f.url, text: f.text }));
     fx.busy = true; actions.render();
     searchAsync(texts, fx.q, { regex: fx.regex, caseSensitive: fx.cs, skipVendor: fx.vendor }).then((r) => {
       fx.busy = false; fx.results = fx.q ? r.results : null; fx.err = r.error; fx.truncated = r.truncated; actions.render();
     });
   };
-  // line и col всегда считаются по исходному тексту; для отформатированного вида позиция пересчитывается при показе
+  // line and col are always counted on the source text; for the formatted view the position is recomputed on display
   const open = (url, line, col, len) => { Object.assign(fx, { sel: url, line: line || 0, col: col || 0, len: len || 0, start: null, jump: true, raw: false }); actions.render(); };
 
   const q = h('input', { class: 'in', type: 'search', placeholder: t('Search in all files'), 'aria-label': t('Search in all files'), value: fx.q,
@@ -154,18 +154,18 @@ function viewer(ctx, f, fx) {
   box.append(h('div', { class: 'titlebar' }, h('h2', { class: 'mono path', text: f.url }), copyIcon(f.url, t('Copy address'))));
   if (f.text == null) {
     box.append(h('dl', { class: 'kv' }, h('dt', { text: t('Type') }), h('dd', { text: f.type }), h('dt', { text: t('Loaded by') }), h('dd', { text: f.initiator || '—' }), f.bytes ? h('dt', { text: t('Size') }) : null, f.bytes ? h('dd', { text: size(f.bytes) }) : null));
-    const live = real && !/fetch|xmlhttprequest|beacon/.test(f.initiator || ''); // ответы fetch/XHR — вызовы API: их не повторяем
+    const live = real && !/fetch|xmlhttprequest|beacon/.test(f.initiator || ''); // fetch/XHR responses are API calls: not repeated
     if (f.type !== 'image') box.append(h('p', { class: 'note', text: live ? t('Routelark does not download this file on its own: it reads only JS, source maps and service files. The Read metadata button requests it once more') : t('Routelark does not download this file: it reads only JS, source maps and service files. The page itself loaded it') }));
-    // Картинку показывает сам браузер тегом img (обычно из кэша: страница её уже загрузила); скрипты из неё не выполняются
+    // The browser itself shows the image via an img tag (usually from cache: the page already loaded it); scripts in it do not run
     if (live && f.type === 'image') box.append(h('div', { class: 'imgbox' }, h('img', { src: f.url, alt: f.url.replace(/^.*\//, ''), referrerpolicy: 'no-referrer', loading: 'lazy' })));
     if (live) box.append(h('div', { class: 'acts' },
       h('a', { class: 'btn', href: f.url, target: '_blank', rel: 'noopener noreferrer', text: t('Open in new tab') }),
       h('a', { class: 'btn', href: f.url, download: f.url.replace(/[?#].*$/, '').replace(/^.*\//, '') || 'file', text: t('Download') }),
       button(t('Read metadata'), () => readMeta(f, actions))));
-    const mb = metaBlock(f); if (mb) box.append(mb); // append(null) вывел бы текст «null»
+    const mb = metaBlock(f); if (mb) box.append(mb); // append(null) would print the text "null"
     return box;
   }
-  // Обфускация: распаковка packed-eval и расшифровка строк, без выполнения кода
+  // Obfuscation: unpacking packed-eval and decoding strings, without executing code
   const obf = store.obf && store.obf.get(f.url), unp = obf && fx.unpacked ? unpackPacked(f.text) : null;
   const pretty = unp && unp.text ? displayText(unp.text, 'js') : disp(store, f, false), changed = pretty !== f.text;
   const text = fx.raw || !changed ? f.text : pretty;
@@ -194,7 +194,7 @@ function viewer(ctx, f, fx) {
   if (start > 0) box.append(h('div', { class: 'acts' }, button(t('Previous lines'), () => { fx.start = Math.max(0, start - WINDOW); fx.jump = false; actions.render(); })));
   for (let i = start; i < end; i++) {
     let s = lines[i], col = target === i + 1 ? tcol : 0, len = fx.len;
-    // Переход из находки: длины совпадения нет, выделяется слово или строка в кавычках от позиции
+    // Jump from a finding: no match length, so a word or quoted string from the position is selected
     if (col && !len) len = (/^["'`][^"'`\n]{0,200}["'`]?|^[\w$.\/-]{1,200}/.exec(s.slice(col - 1)) || ['x'])[0].length;
     let cut = 0;
     if (s.length > LONG) { cut = col > LONG - 200 ? Math.max(0, col - 1000) : 0; s = (cut ? '…' : '') + s.slice(cut, cut + LONG) + '…'; }

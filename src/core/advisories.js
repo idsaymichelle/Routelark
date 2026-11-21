@@ -1,4 +1,4 @@
-// Только записи, сверенные по OSV (api.osv.dev/v1/vulns/<id>), данные на 2026-11. Остальное — через OSV-проверку.
+// Only entries checked against OSV (api.osv.dev/v1/vulns/<id>), data as of 2026-11. Everything else goes through the OSV check.
 export const ADVISORIES_DATE = '2026-11';
 const A = [
   ['jQuery', '<3.5.0', 'CVE-2020-11022', 'XSS when passing HTML to .html()/.append()', '3.5.0', 2],
@@ -10,7 +10,7 @@ const A = [
   ['Bootstrap', '>=4.3.0 <4.3.1', 'CVE-2019-8331', 'XSS in the tooltip/popover data-template', '4.3.1', 2],
   ['Next.js', '>=10.0.0 <12.1.0', 'CVE-2022-23646', 'Image Optimization API vulnerability', '12.1.0', 2],
   ['Handlebars', '<4.7.7', 'CVE-2021-23369', 'Code execution when compiling a template', '4.7.7', 3],
-  // 2026: каждый id сверен с OSV или GitHub Advisory (2026-11-17). Пустая версия исправления — для ветки нет исправления
+  // Every id checked against OSV or GitHub Advisory (2026-11-17). Empty fixed version means that branch has no fix
   ['Next.js', '>=16.0.0 <16.2.11', 'CVE-2026-64642', 'Middleware/proxy auth bypass (App Router, Turbopack, one i18n locale)', '16.2.11', 3],
   ['Next.js', '>=12.2.0 <15.5.16', 'CVE-2026-44573', 'Middleware bypass on Pages Router i18n data route exposes SSR JSON', '15.5.16', 3],
   ['Next.js', '>=16.0.0 <16.2.5', 'CVE-2026-44573', 'Middleware bypass on Pages Router i18n data route exposes SSR JSON', '16.2.5', 3],
@@ -90,7 +90,7 @@ export function matchAdvisories(name, version) {
 const NPM = { jQuery: 'jquery', Lodash: 'lodash', Underscore: 'underscore', AngularJS: 'angular', Angular: '@angular/core', Vue: 'vue', React: 'react', 'Moment.js': 'moment', DOMPurify: 'dompurify', Nuxt: 'nuxt', 'Next.js': 'next', Handlebars: 'handlebars', Axios: 'axios', Bootstrap: 'bootstrap' };
 export const npmName = (name) => NPM[name] || null;
 export function osvQuery(name, version) {
-  // Имя из таблицы стека или уже npm-имя зависимости (строчными буквами, как в реестре)
+  // Name from the stack table or an npm dependency name already (lowercase, as in the registry)
   const pkg = NPM[name] || (/^(?:@[a-z0-9._-]+\/)?[a-z0-9._-]+$/.test(name) ? name : null);
   if (!pkg || !version || !/^\d+\.\d+/.test(version)) return null;
   return { url: 'https://api.osv.dev/v1/query', body: { package: { name: pkg, ecosystem: 'npm' }, version } };

@@ -1,4 +1,4 @@
-// Все форматы экспорта. Секреты попадают в файл только при opt.reveal.
+// All export formats. Secrets reach the file only with opt.reveal.
 import { VERSION, LEVELS } from '../core.js';
 import { npmName } from './advisories.js';
 import { wordlist } from './words.js';
@@ -19,28 +19,28 @@ export function view(f, reveal) {
 }
 function csvCell(v) {
   v = v == null ? '' : String(v);
-  if (/^\s*[=+\-@]|^[\t\r]/.test(v) && v !== '-') v = "'" + v; // защита от формул в Excel; одиночный «-» (нет метода) формулой не является
+  if (/^\s*[=+\-@]|^[\t\r]/.test(v) && v !== '-') v = "'" + v; // Excel formula guard; a lone "-" (no method) is not a formula
   return /[",\r\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
 }
 const srcLabel = (f) => { const s = f.sources[0]; return s ? s.file.replace(/^.*\//, '') + ':' + s.line : ''; };
 const ROUTES = ROUTE_KINDS;
 const routes = (list) => list.filter((f) => ROUTES.has(f.kind));
-// Списки для сканеров (httpx, Nuclei, Burp, Postman, ffuf) — только сайт цели и его поддомены: чужие хосты сканировать нельзя
+// Lists for scanners (httpx, Nuclei, Burp, Postman, ffuf): target site and its subdomains only, foreign hosts must not be scanned
 const portOf = (h) => (/:(\d+)$/.exec(h) || [])[1] || '';
 const onSite = (s) => { const site = s && s.pageHost ? siteOf(s.pageHost.replace(/:\d+$/, '')) : ''; return (f) => { if (!site) return true; const h = String(f.host || s.pageHost); return siteOf(h.replace(/:\d+$/, '')) === site && portOf(h) === portOf(s.pageHost); }; };
 const fullUrls = (list, s) => uniq(routes(list).filter(onSite(s)).filter((f) => f.resolved && !f.resolved.includes('{') && /^https?:/.test(f.resolved)).map((f) => f.resolved.split('?')[0]));
 const methodOf = (f) => (f.method && f.method !== '?' && f.method !== '-' ? f.method : 'GET');
-const esc = (s) => String(s == null ? '' : s).replace(/\|/g, '\\|').replace(/`/g, "'").replace(/[\r\n]+/g, ' ').replace(/[<>\[\]]/g, '\\$&'); // сырой HTML и ссылки из чужого кода не должны ожить в .md
-// Внутри `…` Markdown показывает текст как есть, обратный слэш был бы виден: там < > [ ] не экранируются
+const esc = (s) => String(s == null ? '' : s).replace(/\|/g, '\\|').replace(/`/g, "'").replace(/[\r\n]+/g, ' ').replace(/[<>\[\]]/g, '\\$&'); // raw HTML and links from foreign code must not come alive in .md
+// Inside `...` Markdown shows text as is and a backslash would be visible: < > [ ] are not escaped there
 const escC = (s) => String(s == null ? '' : s).replace(/\|/g, '\\|').replace(/`/g, "'").replace(/[\r\n]+/g, ' ');
 const escHtml = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-// tr: переводить заголовок (только для текстовых отчётов; машинные форматы остаются на английском)
+// tr: translate the heading (text reports only; machine formats stay English)
 const title = (f, v, tr) => { const T = tr ? t : (s) => s; return f.kind === 'secret' ? T(f.url) + ': ' + v.secret : (f.method && f.method !== '?' && f.method !== '-' ? f.method + ' ' : '') + (ROUTES.has(f.kind) ? f.url : T(f.url)); };
 const whyOf = (v, tr) => (tr ? v.why.map((w) => t(w)) : v.why).join('; ');
 const srcT = (f) => { const s = f.sources[0]; return s ? tLabel(s.file).replace(/^.*\//, '') + ':' + s.line : ''; };
 const originOf = (u) => { try { return new URL(u).origin; } catch (e) { return ''; } };
 
-// Имя осталось от русской версии; значения английские, перевод — через t() при выводе
+// Name kept from the Russian version; values are English, translated via t() on output
 export const KIND_LABEL = { api: 'API', debug: 'Admin and debug', docs: 'Documentation', auth: 'Auth', ws: 'WebSocket', page: 'Pages', external: 'External', secret: 'Secrets', pii: 'Personal data', cloud: 'Cloud', tech: 'Stack', code: 'Code', cookie: 'Cookies', storage: 'Storage', config: 'Headers', graphql: 'GraphQL', dom: 'HTML', custom: 'Custom rules and checks', static: 'Static', identity: 'Identity', ai: 'AI', privacy: 'Privacy', tracker: 'Trackers', realtime: 'Realtime channels', mobile: 'Mobile apps', wellknown: 'Service files', infra: 'Infrastructure', browser: 'Browser features', web3: 'Web3', obfuscation: 'Obfuscation' };
 
 export function toJSON(list, o) {
@@ -48,7 +48,7 @@ export function toJSON(list, o) {
 }
 export function toCSV(list, o) {
   const head = ['priority', 'level', 'kind', 'method', 'url', 'resolved', 'host', 'params', 'owasp', 'confidence', 'source', 'why', 'secret'];
-  return [head.join(',')].concat(list.map((f) => { const v = view(f, o.reveal); return [v.priority ? 'yes' : '', v.level, v.kind, v.method, v.url, v.resolved, v.host, v.params.join(' '), v.owasp.join(' '), v.confidence, srcLabel(f), v.why.join('; '), v.secret || ''].map(csvCell).join(','); })).join('\r\n'); // RFC 4180: CRLF
+  return [head.join(',')].concat(list.map((f) => { const v = view(f, o.reveal); return [v.priority ? 'yes' : '', v.level, v.kind, v.method, v.url, v.resolved, v.host, v.params.join(' '), v.owasp.join(' '), v.confidence, srcLabel(f), v.why.join('; '), v.secret || ''].map(csvCell).join(','); })).join('\r\n');
 }
 export const toURLs = (list, s) => fullUrls(list, s).join('\n');
 export const toPaths = (list, s) => uniq(routes(list).filter(onSite(s)).map((f) => f.url.split('?')[0].replace(/\{[^}]*\}/g, 'FUZZ'))).join('\n');
@@ -108,7 +108,7 @@ function toPostman(store, list) {
   const item = routes(list).filter(onSite(store)).filter((f) => f.resolved && !/^wss?:/.test(f.resolved)).map((f) => ({ name: methodOf(f) + ' ' + f.url, request: { method: methodOf(f), header: [], url: { raw: f.resolved.replace(/\{([^}]+)\}/g, ':$1') } } }));
   return JSON.stringify({ info: { name: 'Routelark: ' + (store.pageHost || 'site'), schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json' }, item }, null, 2);
 }
-// Трафик без подмены fetch: адрес, время, статус. Метод — из кода, если адрес там найден.
+// Traffic without a fetch override: URL, time, status. Method comes from code if the URL is found there.
 function toHAR(store, list, o) {
   const known = new Map(routes(list).filter((f) => f.resolved).map((f) => [f.resolved.split('?')[0], f.method]));
   const entries = (o.traffic || []).map((t) => {
@@ -136,7 +136,7 @@ function issue(store, list, o, jira) {
 }
 
 
-// G5: форматы для Caido, ZAP, Katana, DefectDojo, Faraday, Bruno и Nuclei. Форматы Caido, Bruno, DefectDojo и Faraday сверены по документации, но не на живом импорте
+// Formats for Caido, ZAP, Katana, DefectDojo, Faraday, Bruno and Nuclei. Caido, Bruno, DefectDojo and Faraday were checked against docs, not a live import
 const SEV = ['Info', 'Low', 'Medium', 'High', 'Critical'];
 const reEsc = (x) => x.replace(/[.^$*+?()[\]{}|/\\]/g, '\\$&');
 const hostRe = (site) => 'https?://([a-z0-9-]+\\.)*' + reEsc(site) + '(:[0-9]+)?';
@@ -162,18 +162,18 @@ function toBruno(s, list) {
 }
 function toNucleiTemplate(s, list) {
   const f = list[0]; if (!f || !ROUTES.has(f.kind)) return t('Not available as a Nuclei template: select an endpoint finding');
-  // Шаблон только читает: GET даже если код шлёт PUT/DELETE — изменяющий запрос включается вручную
-  // shortcut: значение 1 вместо {id} может не существовать — подставьте своё
+  // The template only reads: GET even if the code sends PUT/DELETE; a mutating request must be enabled manually
+  // shortcut: value 1 instead of {id} may not exist, substitute your own
   const code = VERBS.test(f.method || '') ? f.method.toUpperCase() : '', m = /^(?:GET|HEAD)$/.test(code) ? code : 'GET', path = (f.path || f.url).split('?')[0].replace(/\{[^}]+\}/g, '1');
   return 'id: routelark-' + (slug(m + '-' + path) || f.id) + '\ninfo:\n  name: ' + JSON.stringify(m + ' ' + path + ' - Routelark lead') + '\n  author: routelark\n  severity: ' + LEVELS[f.risk] + '\n  description: ' + JSON.stringify('Lead from client code. Verify by hand before use.' + (VERBS.test(f.method || '') ? '' : ' Method unknown.')) + '\n  tags: routelark,exposure\nhttp:\n  - method: ' + m + '\n    path:\n      - ' + JSON.stringify('{{BaseURL}}' + path) + (code && code !== m ? '\n    # code uses ' + code + ': change the method by hand only if you are allowed to send it' : '') + '\n    matchers-condition: and\n    matchers:\n      - type: status\n        status:\n          - 200\n    # add a word or regex matcher after checking the response by hand\n';
 }
-// A6: инвентаризация скриптов для PCI DSS 6.4.3 — рабочая таблица, не результат соответствия
+// Script inventory for PCI DSS 6.4.3: a working table, not a compliance result
 function toPCI(s, list, o) {
   const card = list.some((f) => f.url === 'Card fields on the page'), rows = new Map();
   for (const r of o.traffic || []) if (/script/.test(r.initiator || '') || /\.m?js(?:$|\?)/.test(String(r.url))) rows.set(String(r.url), [r.url, (() => { try { return new URL(r.url).host; } catch (e) { return ''; } })(), 'script', '', card ? 'yes' : 'no', r.t ? new Date(r.t).toISOString() : '']);
   return ['url,host,kind,sri,on_card_page,first_seen'].concat(Array.from(rows.values(), (r) => r.map(csvCell).join(','))).join('\n') + '\n';
 }
-// B2: догадки о соседних маршрутах — только список для ручной проверки, Routelark их не запрашивает
+// Guesses at neighbouring routes: a list for manual review only, Routelark never requests them
 const SIBLINGS = ['admin', 'internal', 'export', 'all', 'debug', 'config', 'settings', 'bulk', 'search', 'count'];
 function toSiblings(list) {
   const out = new Set(), have = new Set(routes(list).map((f) => (f.path || '').split('?')[0]));
@@ -186,16 +186,16 @@ function toSiblings(list) {
   for (const p of have) out.delete(p);
   return '# ' + 'Guesses next to known routes. Not requested by Routelark: check them by hand, within scope\n' + Array.from(out).slice(0, 2000).join('\n') + '\n';
 }
-// G4: пакет для ИИ — только замаскированные данные, хосты заменены, без фрагментов кода и значений
+// AI bundle: masked data only, hosts replaced, no code fragments or values
 function toAI(s, list) {
-  // Все поддомены сайта цели, а не только хост страницы
+  // All subdomains of the target site, not just the page host
   const site = siteOf((s.pageHost || '').replace(/:\d+$/, '')), re = site ? new RegExp('(?:[a-z0-9-]+\\.)*' + reEsc(site) + '(?::\\d+)?', 'gi') : null;
   const hide = (x) => (re ? String(x || '').replace(re, 'target.example') : String(x || ''));
   const top = list.filter((f) => f.risk > 0).slice(0, 80);
   return ['# Routelark context for an AI assistant', 'Leads from passive client-side recon. Hosts are replaced with target.example; secret values are masked; no code snippets are included.', 'Task: group these leads by root cause and suggest what to verify by hand first. Do not invent findings.', ''].concat(top.map((f) => { const v = view(f, false); return '- [' + v.level + '] ' + hide(title(f, v)) + ' — ' + hide(whyOf(v)); })).join('\n') + '\n';
 }
 
-// build(store, list, opt): list — уже отфильтрованные находки (то, что видно в интерфейсе)
+// build(store, list, opt): list is the already filtered findings (what the UI shows)
 export const FORMATS = [
   { id: 'md', label: 'Markdown report', group: 'Reports', ext: 'md', mime: 'text/markdown', build: (s, l, o) => toMarkdown(s, o, l) },
   { id: 'html', label: 'HTML report', group: 'Reports', ext: 'html', mime: 'text/html', build: (s, l, o) => toHTML(s, l, o) },

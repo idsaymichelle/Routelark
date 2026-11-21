@@ -1,9 +1,9 @@
-// Места в клиентском коде для ручной проверки. Шум подавляется: каждое правило требует контекста.
+// Spots in client code for manual review. Noise is suppressed: every rule needs context.
 const SINK = /(\.\s*(?:innerHTML|outerHTML)\s*\+?=(?!=)|\[\s*['"](?:innerHTML|outerHTML)['"]\s*\]\s*\+?=(?!=)|\.\s*setHTMLUnsafe\s*\(|\.\s*insertAdjacentHTML\s*\(|document\s*\.\s*write(?:ln)?\s*\(|dangerouslySetInnerHTML|(?:^|[^\w.$])eval\s*\(|new\s+Function\s*\(|setTimeout\s*\(\s*["'`]|\.\s*html\s*\(\s*[^)\s])/g;
 const SOURCE = /location\s*\.\s*(?:hash|search|href)|document\s*\.\s*(?:referrer|URL|documentURI)|window\s*\.\s*name|URLSearchParams|\.\s*data\b/;
-// Только окно: у WebSocket, Worker и BroadcastChannel тоже есть onmessage, но origin у них не проверяют
+// Window only: WebSocket, Worker and BroadcastChannel also have onmessage, but their origin is not checked
 const LISTENER = /(?:^|[^\w$.])addEventListener\s*\(\s*(["'`])message\1|\b(?:window|self|globalThis)\s*\.\s*(?:addEventListener\s*\(\s*(["'`])message\2|onmessage\s*=(?!=))|(?:^|[^\w$.])onmessage\s*=(?!=)/g;
-// Слабые сравнения origin (indexOf, endsWith, регулярка без якорей) пропускают похожие домены
+// Weak origin checks (indexOf, endsWith, unanchored regex) let lookalike domains through
 const ORIGIN_WEAK = /\.origin\s*\.\s*(?:indexOf|includes|search|match|startsWith|endsWith)\s*\(|\/(?!\^)[^/\n]{2,200}\/[gimsuy]*\.test\(\s*(?:\w+\.)?origin\s*\)|origin\s*===?\s*['"]null['"]/;
 const ORIGIN_EXACT = /\b(?:event|e|ev|evt|msg|message)\s*\.\s*origin\s*(?:===?|!==?)\s*(?:['"`]https?:\/\/[^'"`]+['"`]|[\w.$]*(?:ALLOWED|allowed|[Oo]rigin|ORIGIN)[\w.$]*)|\/\^[^\n]{2,200}?\$\/[gimsuy]*\.test\(\s*(?:\w+\.)?origin\s*\)|allowedOrigins?\s*\.\s*(?:includes|has|indexOf)\s*\(\s*\w+\s*\.\s*origin\s*\)/;
 const PP_DEF = /\b(?:merge|deepMerge|deepExtend|extend|assign|deepAssign|assignDeep|defaultsDeep|mergeWith|setDeep|deepSet|setPath|setIn)\s*(?:=\s*(?:function\b|\(|async\b)|[:(]\s*function\b|\()/g;
@@ -24,27 +24,24 @@ const TT_PASS = /createPolicy\s*\(\s*[^,]{1,80},\s*\{[^}]{0,300}?(?:createHTML|c
 const JSONP_DYN = /[?&](?:callback|jsonp|cb)=(?:['"`]\s*\+|\$\{)|searchParams\s*\.\s*set\s*\(\s*['"`](?:callback|jsonp|cb)['"`]\s*,\s*(?!['"`])/g;
 const REDIR_SINK = /\blocation\s*\.\s*(?:href|assign|replace)\s*(?:=(?!=)|\()|\bwindow\s*\.\s*location\s*=(?!=)|\bwindow\.open\s*\(/g;
 const REDIR_SRC = /location\s*\.\s*(?:hash|search)|URLSearchParams|searchParams\s*\.\s*get\(|\.query\b|\b(?:returnUrl|return_url|redirect_?uri|redirectUrl|returnTo)\b/;
-// Защита — только сравнение origin; startsWith('/') пропускает //evil.example
+// The only defence is an origin comparison; startsWith('/') lets //evil.example through
 const REDIR_CHECK = /\.origin\s*[!=]==?\s*(?:window\.)?location\.origin|location\.origin\s*[!=]==?\s*[\w.]+\.origin/;
 const ROUTE = /\b(?:path|redirect)\s*:\s*["'`](\/[\w\/:.-]{2,80})["'`]/g;
 const ROUTE_HIDDEN = /admin|dashboard|internal|beta|staging|debug|superuser|manage|backoffice/i;
 const AUTHZ = /\b(?:isAdmin|is_admin|isSuperuser|isStaff|hasRole\s*\(|role\s*===?\s*["']admin["'])/;
 const PRIVATE_IP = /\b(?:10\.\d{1,3}|192\.168|172\.(?:1[6-9]|2\d|3[01]))\.\d{1,3}\.\d{1,3}\b/g;
-// B3: флаги функций, отладочные переключатели и переключатели обхода авторизации
 const FLAG_CALL = /\b(?:useFlag|isEnabled|getFeatureFlag|featureEnabled|variation)\(\s*(["'`])([\w.:-]{2,80})\1/g;
 const DEBUG_NAME = /\b(debugMode|isDebug|devMode|debugEnabled|showDebug)\b\s*(?:[:=]|&&|\?|\))/g;
 const BYPASS = /\b(bypassAuth|skipAuth|disableAuth|authDisabled|noAuth)\b\s*(?:[:=]|&&|\?|\))/g;
-// F1: цены и лимиты в клиентском коде — только рядом со словами оформления заказа
 const BIZ_CALC = /\b(?:price|total|subtotal|amount)\w*\s*[*+-]\s*[\w.()]{1,40}|[*-]\s*(?:\(\s*)?[\w.]*\b(?:discount|coupon|promo)\w*/gi;
 const BIZ_CTX = /\b(?:checkout|order|cart|payment|invoice|submit|pay)\b/i;
 const BIZ_LIMIT = /\b(MAX_(?:LOGIN_|AUTH_|RETRY_|RETRIES|ATTEMPTS|TRIES|QUOTA|REQUESTS)[A-Z_]{0,30}|maxAttempts|rateLimit|retryLimit|maxRetries)\s*[:=]\s*(\d{1,6})\b/g;
-// D5: запись токена в хранилище, logout без очистки, токен через BroadcastChannel
 const TOKEN_STORE = /\b(localStorage|sessionStorage)(?:\.setItem\(\s*(["'`])(?![\w.-]*(?:author|accessib))([\w.-]*(?:token|jwt|access|refresh|session|auth)[\w.-]*)\2|\s*\.\s*((?![\w]*(?:author|accessib))\w*(?:token|jwt|refresh|session)\w*)\s*=(?!=))/gi;
 const LOGOUT_FN = /\b(?:logout|logOut|signOut|signout|handleLogout|onLogout)\s*[=:]\s*(?:async\s*)?(?:function\b|\(|\w+\s*=>)|\bfunction\s+(?:logout|logOut|signOut|signout|handleLogout|onLogout)\s*\(|(?:^|[\s;{}])(?:async\s+)?(?:logout|logOut|signOut|signout)\s*\([^)]*\)\s*\{/g;
 const BC_NEW = /new\s+BroadcastChannel\s*\(\s*['"`]([^'"`]{1,64})['"`]\s*\)/g;
 const TODO = /(?:\/\/|\/\*)\s*(?:TODO|FIXME|HACK)\b/;
 
-// Индекс переводов строк строится один раз на текст: иначе каждая находка заново проходит весь файл
+// Line-number index is built once per text; otherwise every finding rescans the whole file
 let lcText = null, lcNl = [];
 function lineCol(text, pos) {
   if (text !== lcText) { lcText = text; lcNl = []; for (let i = text.indexOf('\n'); i !== -1; i = text.indexOf('\n', i + 1)) lcNl.push(i); }
@@ -60,38 +57,36 @@ export function codeFindings(text, file) {
   let m, n = 0;
   SINK.lastIndex = 0;
   while ((m = SINK.exec(text)) && n < 50) {
-    if (m[1] === 'dangerouslySetInnerHTML' || !SOURCE.test(text.slice(Math.max(0, m.index - 260), m.index + 260))) continue; // источник бывает и до приёмника: const v = location.hash; el.innerHTML = v
+    if (m[1] === 'dangerouslySetInnerHTML' || !SOURCE.test(text.slice(Math.max(0, m.index - 260), m.index + 260))) continue; // the source may come before the sink: const v = location.hash; el.innerHTML = v
     n++; add('sink', 'DOM sink near external data: ' + m[1].replace(/\s+/g, '').replace(/^\./, '').slice(0, 30), 2, m.index);
   }
   LISTENER.lastIndex = 0; n = 0;
   while ((m = LISTENER.exec(text)) && n < 20) {
     const body = text.slice(m.index, m.index + 500);
     n++;
-    if (!/\.\s*data\b/.test(body)) { add('postmessage', 'message handler, body not read', 1, m.index); continue; } // обработчик по имени: тело дальше окна
+    if (!/\.\s*data\b/.test(body)) { add('postmessage', 'message handler, body not read', 1, m.index); continue; } // handler passed by name: its body lies beyond the window
     const weak = ORIGIN_WEAK.test(body.replace(/\/\^[^\n]{2,200}?\$\/[gimsuy]*\.test\(/g, '')), ok = !weak && ORIGIN_EXACT.test(body);
     add('postmessage', weak ? 'message handler uses a weak origin check' : ok ? 'message handler checks origin' : 'message handler without origin check', ok ? 0 : 2, m.index);
   }
-  // Исходящие сообщения на любой origin
   PM_STAR.lastIndex = 0; n = 0;
   while ((m = PM_STAR.exec(text)) && n++ < 20) add('postmessage', "postMessage to any origin ('*')", PM_SECRET.test(m[0]) ? 2 : 1, m.index);
-  // Прототипное загрязнение: рекурсивное слияние, пишущее по ключу из for-in без защиты
+  // Prototype pollution: recursive merge writing by a for-in key without a guard
   PP_DEF.lastIndex = 0; n = 0;
   while ((m = PP_DEF.exec(text)) && n < 20) {
     const w = text.slice(m.index, m.index + 500), loop = PP_LOOP.exec(w);
     if (!loop || PP_GUARD.test(w) || !new RegExp('\\[\\s*' + loop[1] + '\\s*\\]\\s*=(?!=)').test(w)) continue;
-    n++; const reach = SOURCE_PP.test(text.slice(Math.max(0, m.index - 300), m.index + 600)); // «пользовательские ключи» — только если источник рядом с функцией
+    n++; const reach = SOURCE_PP.test(text.slice(Math.max(0, m.index - 300), m.index + 600)); // "user keys" only if a source is near the function
     add('proto', reach ? 'Recursive merge with user-shaped keys' : 'Recursive merge without a __proto__ guard', reach ? 2 : 1, m.index);
   }
   if ((m = PP_STRIP_ONCE.exec(text))) add('proto', 'Key filter removes __proto__ in one pass', 2, m.index);
   else if ((m = PP_KEY_CMP.exec(text)) && !/\bconstructor\b|\bprototype\b/.test(text.slice(Math.max(0, m.index - 200), m.index + 200))) add('proto', 'Key filter checks __proto__ but not constructor/prototype', 2, m.index);
-  // CSPT: адрес запроса собран из значения маршрута или URL без encodeURIComponent
+  // CSPT: request URL built from a route value or URL without encodeURIComponent
   CSPT_SINK.lastIndex = 0; n = 0;
   while ((m = CSPT_SINK.exec(text)) && n < 50) {
     if (!CSPT_SRC.test(text.slice(Math.max(0, m.index - 400), m.index))) continue;
     n++; const state = /method\s*:\s*['"`](?:POST|PUT|PATCH|DELETE)['"`]/i.test(text.slice(m.index, m.index + 300));
     add('cspt', 'Request URL built from a route or URL value: ' + m[1].replace(/\s+/g, ' ').slice(0, 40), state ? 3 : 2, m.index);
   }
-  // Обходы доверия во фреймворках
   NG_BYPASS.lastIndex = 0; n = 0;
   while ((m = NG_BYPASS.exec(text)) && n++ < 20) add('trust', 'Angular trust bypass: bypassSecurityTrust' + m[1], 2, m.index);
   VUE_VHTML.lastIndex = 0; n = 0;
@@ -122,7 +117,7 @@ export function codeFindings(text, file) {
   once(BIZ_LIMIT, 10, (x) => ['biz-limit', 'Limit in client code: ' + x[1] + ' = ' + x[2], 1]);
   once(BIZ_CALC, 10, (x) => (BIZ_CTX.test(text.slice(Math.max(0, x.index - 120), x.index + 120)) ? ['biz-calc', 'Price or discount calculated in client code', 1] : null));
   once(TOKEN_STORE, 20, (x) => ['token-store', 'Token written to ' + x[1] + ': ' + (x[3] || x[4]), 2]);
-  // Ключ в константе: const KEY = 'token'; localStorage.setItem(KEY, t)
+  // Key in a constant: const KEY = 'token'; localStorage.setItem(KEY, t)
   once(/\b(localStorage|sessionStorage)\.setItem\(\s*([A-Za-z_$][\w$]{0,40})\s*,/g, 20, (x) => { const d = new RegExp('\\b' + x[2].replace(/\$/g, '\\$') + '\\s*=\\s*["\'`]([\\w.-]*(?:token|jwt|refresh|session)[\\w.-]*)["\'`]', 'i').exec(text); return d && !/author|accessib/i.test(d[1]) ? ['token-store', 'Token written to ' + x[1] + ': ' + d[1], 2] : null; });
   if (/\.setItem\(\s*["'`][\w.-]*(?:token|jwt)|(?:local|session)Storage\s*\.\s*\w*(?:token|jwt)\w*\s*=/i.test(text)) once(LOGOUT_FN, 5, (x) => (/removeItem\s*\(|\.clear\s*\(\s*\)/.test(text.slice(x.index, x.index + 600)) ? null : ['token-store', 'Logout function does not clear stored tokens', 1]));
   once(BC_NEW, 5, (x) => { const w = /\.postMessage\s*\(([^;]{0,200})\)/.exec(text.slice(x.index, x.index + 800)); return w && /token|jwt|bearer|password|secret|session/i.test(w[1]) ? ['token-store', 'BroadcastChannel carries a token: ' + x[1], 2] : null; });

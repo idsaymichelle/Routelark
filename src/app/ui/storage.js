@@ -1,4 +1,4 @@
-// localStorage и sessionStorage страницы: ключи, расшифровка значений.
+// Page localStorage and sessionStorage: keys, value decoding.
 import { h, kv, copyIcon } from './dom.js';
 import { decodeValue } from '../../core/cookies.js';
 import { t } from '../../i18n.js';

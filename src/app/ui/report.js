@@ -1,4 +1,4 @@
-// Отчёт: выбрать формат, посмотреть на странице, затем скачать, скопировать или открыть отдельной вкладкой.
+// Report: pick a format, preview on the page, then download, copy or open in a separate tab.
 import { h, button, copy, download, openInTab } from './dom.js';
 import { FORMATS } from '../../core/export.js';
 import { sessionFile, readSession, compareRuns } from '../../core/session.js';
@@ -9,9 +9,9 @@ import { isShown } from '../visible.js';
 export function renderReport(ctx) {
   const { app, store, actions } = ctx, st = app.report || (app.report = { fmt: 'md', secrets: false, note: '' });
   const fmt = FORMATS.find((f) => f.id === st.fmt) || FORMATS[0];
-  // Во время скана экран перерисовывается часто: отчёт пересобирается, только когда изменились данные или выбор
+  // The screen redraws often during a scan: the report is rebuilt only when data or selection changed
   const key = [fmt.id, st.secrets, store.rev, store.status, (app.traffic || []).length, getLang(), fmt.scope ? app.sel : '', st.ai, app.program ? app.program.rules.length : 0, !!app.showHidden].join('|');
-  // Отчёты по умолчанию без находок вне скоупа программы (переключатель «Show hidden» в настройках)
+  // Reports exclude out-of-scope findings by default ("Show hidden" toggle in settings)
   const chosen = fmt.scope === 'finding' ? store.list().filter((f) => f.id === app.sel) : store.list().filter((f) => isShown(f, app));
   let text = st.cacheKey === key && st.cacheStore === store ? st.cache : '';
   if (st.cacheKey !== key || st.cacheStore !== store) try { text = fmt.build(store, chosen, { ai: st.ai, reveal: st.secrets, target: store.pageUrl, traffic: (app.page ? app.page.resources : []).concat(app.traffic) }); } catch (e) { text = t('Could not build: {error}', { error: e && e.message || e }); }
@@ -25,10 +25,10 @@ export function renderReport(ctx) {
   }
   const file = h('input', { type: 'file', accept: '.json', hidden: true, onchange: async (e) => {
     try { const j = readSession(await e.target.files[0].text()); app.diff = compareRuns(j.findings.map((f) => f.id), store); app.prevLabels = Object.fromEntries(j.findings.map((f) => [f.id, (f.method && f.method.length > 1 ? f.method + ' ' : '') + f.url])); st.note = 'Comparison ready: ' + app.diff.added.length + ' added, ' + app.diff.removed.length + ' removed. Details are in Overview' + (j.origin && j.origin !== store.pageOrigin ? '. Warning: the file is from a different site (' + j.origin + ')' : ''); }
-    catch (x) { st.note = x.message; } // сообщение переводится при выводе
+    catch (x) { st.note = x.message; } // the message is translated on output
     actions.render();
   } });
-  // Открыть сохранённую сессию или файл: результат показывается вместо текущего скана
+  // Open a saved session or file: the result is shown instead of the current scan
   const open = h('input', { type: 'file', multiple: true, hidden: true, onchange: async (e) => {
     try { const r = await analyzeFiles(Array.from(e.target.files), '', app.settings); if (!r.store.items.length && !(r.cookies || []).length) st.note = 'No findings in this data'; else return actions.showStore(r.store, r.page, r.cookies); }
     catch (x) { st.note = 'Could not parse: ' + (x && x.message || x); }
@@ -46,7 +46,7 @@ export function renderReport(ctx) {
     button(t('Open in tab'), () => openInTab(text, fmt.id === 'html' ? 'text/html' : 'text/plain')),
     button(t('Copy'), () => copy(text)),
     button(t('Download'), () => download(name, text, fmt.mime), 'pri'));
-  // HTML-отчёт показываем в изолированном фрейме: скрипты в нём не выполняются
+  // The HTML report is shown in an isolated frame: scripts in it do not run
   const preview = fmt.id === 'html' ? h('iframe', { class: 'frame', sandbox: '', srcdoc: text, title: t('Report preview') }) : h('pre', { class: 'preview', text: text || t('Empty') });
   return h('div', { class: 'split report' }, left, h('div', { class: 'col' }, head, preview));
 }

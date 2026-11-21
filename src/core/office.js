@@ -1,10 +1,10 @@
-// B6: метаданные документов Office (docx/xlsx/pptx — ZIP с docProps) и шрифтов (таблица name OpenType/TrueType).
-// Только по кнопке и только для файлов, которые страница загрузила или на которые ссылается. Распаковка — DecompressionStream, без библиотек.
+// Office document metadata (docx/xlsx/pptx are ZIPs with docProps) and fonts (OpenType/TrueType name table).
+// Only on button press and only for files the page loaded or links to. Unpacking uses DecompressionStream, no libraries.
 const u16 = (b, o) => (b[o] << 8) | b[o + 1], u32 = (b, o) => ((b[o] << 24) | (b[o + 1] << 16) | (b[o + 2] << 8) | b[o + 3]) >>> 0;
 const le16 = (b, o) => b[o] | (b[o + 1] << 8), le32 = (b, o) => (b[o] | (b[o + 1] << 8) | (b[o + 2] << 16) | (b[o + 3] << 24)) >>> 0;
 const WANT = /^(?:docProps\/(?:core|app|custom)\.xml)$/;
 
-// Записи центрального каталога ZIP: { name, method, size, offset }
+// ZIP central directory entries: { name, method, size, offset }
 export function zipEntries(b) {
   let e = -1;
   for (let i = b.length - 22; i >= Math.max(0, b.length - 65557); i--) if (le32(b, i) === 0x06054b50) { e = i; break; }
@@ -22,7 +22,7 @@ async function entryText(b, en) {
   const start = h + 30 + le16(b, h + 26) + le16(b, h + 28), raw = b.subarray(start, start + en.size);
   if (en.method === 0) return new TextDecoder().decode(raw);
   if (en.method !== 8 || typeof DecompressionStream === 'undefined') return '';
-  // Читаем распакованный поток частями и останавливаемся на 200 КБ: zip-бомба иначе раздувается в память целиком
+  // Read the decompressed stream in chunks and stop at 200 KB: otherwise a zip bomb inflates fully into memory
   try {
     const rd = new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw')).getReader(), dec = new TextDecoder();
     let out = '';
@@ -31,7 +31,7 @@ async function entryText(b, en) {
     return out.slice(0, 2e5);
   } catch (e) { return ''; }
 }
-const xmlText = (x) => x.replace(/&(?:#(\d+)|#x([\da-f]+)|(lt|gt|quot|apos));|&amp;/gi, (m, d, h, n) => { if (n) return { lt: '<', gt: '>', quot: '"', apos: "'" }[n.toLowerCase()]; if (m === '&amp;') return '&'; try { return String.fromCodePoint(d ? +d : parseInt(h, 16)); } catch (e) { return m; } }); // &amp; обрабатывается за один проход, двойное декодирование исключено
+const xmlText = (x) => x.replace(/&(?:#(\d+)|#x([\da-f]+)|(lt|gt|quot|apos));|&amp;/gi, (m, d, h, n) => { if (n) return { lt: '<', gt: '>', quot: '"', apos: "'" }[n.toLowerCase()]; if (m === '&amp;') return '&'; try { return String.fromCodePoint(d ? +d : parseInt(h, 16)); } catch (e) { return m; } }); // &amp; is handled in a single pass, double decoding is excluded
 const TAGS = [['dc:creator', 'Author'], ['cp:lastModifiedBy', 'Last modified by'], ['dc:title', 'Title'], ['dcterms:created', 'Created'], ['dcterms:modified', 'Modified'], ['Application', 'Created with'], ['AppVersion', 'App version'], ['Company', 'Company'], ['Manager', 'Manager'], ['Template', 'Template']];
 export async function officeMeta(b) {
   const list = zipEntries(b); if (!list) return null;
@@ -46,7 +46,7 @@ export async function officeMeta(b) {
   if (docs.length && typeof DecompressionStream === 'undefined') fields.push(['Note', 'This browser cannot unpack ZIP entries']);
   return { format: kind, fields };
 }
-// Таблица name шрифта: TTF/OTF как есть; WOFF2 и WOFF сжаты — не разбираются
+// Font name table: TTF/OTF as is; WOFF2 and WOFF are compressed and not parsed
 const NAME_IDS = { 0: 'Copyright', 1: 'Family', 3: 'Unique ID', 4: 'Full name', 5: 'Version', 8: 'Manufacturer', 9: 'Designer', 10: 'Description', 11: 'Vendor URL', 12: 'Designer URL', 13: 'License', 14: 'License URL' };
 export function fontMeta(b) {
   const tag = String.fromCharCode(b[0], b[1], b[2], b[3]);
@@ -60,7 +60,7 @@ export function fontMeta(b) {
     const r = name + 6 + i * 12; if (r + 12 > b.length) break;
     const plat = u16(b, r), id = u16(b, r + 6), len = u16(b, r + 8), off = store + u16(b, r + 10);
     if (!NAME_IDS[id] || off + len > b.length) continue;
-    // два прохода: сначала Windows/Unicode, затем Mac только для ASCII (Mac Roman не декодируется)
+    // two passes: Windows/Unicode first, then Mac for ASCII only (Mac Roman is not decoded)
     if (pass ? plat !== 1 : plat !== 3 && plat !== 0) continue;
     if (seen.has(id)) continue;
     let s = ''; if (!pass) for (let j = 0; j + 1 < len; j += 2) s += String.fromCharCode(u16(b, off + j)); else { for (let j = 0; j < len; j++) s += String.fromCharCode(b[off + j]); if (/[^\x20-\x7e]/.test(s)) continue; }

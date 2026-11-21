@@ -1,8 +1,8 @@
-// Цепочка поставок (H6, A7, F6): известные вредоносные версии, скомпрометированные хосты скриптов, мёртвые CDN и похожие на CDN домены.
-// Данные сверены с OSV MAL-, отчётами поставщиков и CSA. Находки — «проверьте», не «взломан»: версия на странице ещё не значит, что её установили.
-// Только чтение адресов и версий, которые страница уже показала. Без запросов.
+// Supply chain: known malicious versions, compromised script hosts, dead CDNs and CDN lookalike domains.
+// Data checked against OSV MAL-, vendor reports and CSA. Findings say "check", not "compromised": a version on the page does not mean it was installed.
+// Only reads addresses and versions the page already showed. No requests.
 
-// name|версии через запятую|id OSV или -|дата|кампания. TanStack — 12 проверенных пар из 84 (полный список в GHSA-g7cv-rxg3-hmpx не прочитан)
+// name|comma-separated versions|OSV id or -|date|campaign. TanStack: 12 verified pairs out of 84 (the full list in GHSA-g7cv-rxg3-hmpx was not read)
 const BAD = `axios|1.14.1,0.30.4|MAL-2026-2307|2026-03-31|plain-crypto-js dependency
 plain-crypto-js|4.2.1,4.2.0,0.0.1-security|MAL-2026-2306|2026-03-31|postinstall RAT
 @tanstack/react-router|1.169.5,1.169.8|GHSA-g7cv-rxg3-hmpx|2026-05-11|Mini Shai-Hulud
@@ -50,7 +50,7 @@ node-ipc|9.1.6,9.2.3,12.0.1|MAL-2026-3744|2026|malicious release
 @tanstack/arktype-adapter|1.166.12|MAL-2026-3460|2026-05-11|Mini Shai-Hulud`;
 const TABLE = new Map();
 for (const line of BAD.split('\n')) { const [name, vs, id, date, tag] = line.split('|'); TABLE.set(name, { versions: vs.split(','), id, date, tag }); }
-// Пакеты, само присутствие которых — повод проверить
+// Packages whose mere presence warrants a check
 const NAME_ONLY = { 'plain-crypto-js': 'MAL-2026-2306', '@tanstack/setup': 'Shai-Hulud 2.0' };
 
 export function badMatch(name, version) {
@@ -59,20 +59,20 @@ export function badMatch(name, version) {
   if (NAME_ONLY[name]) return { risk: 2, title: 'Dependency present: ' + name, why: [NAME_ONLY[name] + ': check the lockfile and install history'] };
   return null;
 }
-// Версия из пути pnpm: node_modules/.pnpm/@scope+name@1.2.3_peer@4/node_modules/...
+// Version from a pnpm path: node_modules/.pnpm/@scope+name@1.2.3_peer@4/node_modules/...
 export function pnpmPackage(path) {
   const m = /node_modules\/\.pnpm\/((?:@[^+/]+\+)?[^@/]+)@(\d[^_/(]*)/.exec(path);
   return m ? { name: m[1].replace('+', '/'), version: m[2] } : null;
 }
 
-// Скрипты с хостов, где поставщик сообщил о подмене. Совпадение хоста и пути — подсказка, не вердикт
+// Scripts from hosts where the vendor reported tampering. A host and path match is a hint, not a verdict
 const HOSTS = [
   [/^a\.(?:omappapi|opmnstr|optnmstr|trstplse)\.com$/, /\/app\/js\/api\.min\.js/, 'OptinMonster/TrustPulse CDN tampering, 2026-06-12'],
   [/^tidio\.cc$/, null, 'lookalike host named in the OptinMonster incident, 2026-06-12'],
   [/(?:^|\.)(?:brevo\.com|sibforms\.com)$/, /(?:sdk-loader|brevo-conversations)\.js/, 'Brevo CDN tampering, 2026-09-14 16:05–20:30 UTC'],
   [/^cdn\.debugbear\.com$/, null, 'DebugBear DNS hijack, 2026-10-29']
 ];
-// Мёртвые и захваченные CDN: polyfill.io с 2024 года отдаёт вредоносный код, остальные — тот же оператор
+// Dead and hijacked CDNs: polyfill.io has served malicious code since 2024, the rest are the same operator
 const DEAD = { 'polyfill.io': 4, 'bootcdn.net': 3, 'bootcss.com': 3, 'staticfile.net': 3, 'staticfile.org': 3 };
 const KNOWN = ['jsdelivr.net', 'unpkg.com', 'cloudflare.com', 'googleapis.com', 'gstatic.com', 'jquery.com', 'bootstrapcdn.com', 'jsdelivr.com', 'skypack.dev', 'esm.sh', 'jspm.io', 'aspnetcdn.com', 'cdnjs.com'];
 const reg = (host) => host.split('.').slice(-2).join('.');

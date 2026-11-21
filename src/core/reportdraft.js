@@ -1,5 +1,5 @@
-// D3: черновики отчётов для HackerOne, Bugcrowd и Intigriti. Одна корневая причина — один отчёт со всеми местами.
-// Вектор CVSS 4.0 предлагается только для секретов и без числовой оценки (калькулятор не сверен с эталоном FIRST); влияние пишет человек.
+// Report drafts for HackerOne, Bugcrowd and Intigriti. One root cause is one report listing all places.
+// A CVSS 4.0 vector is offered for secrets only, with no numeric score (the calculator is not checked against the FIRST reference); a human writes the impact.
 import { mapping } from './mapping.js';
 import { fnv } from '../core.js';
 const NEEDS = (f) => !(f.observed && f.confidence === 'high');
@@ -25,7 +25,7 @@ const STEPS = {
   tech: ['Open {file}.', 'Check the library version in the source and compare it with the advisory.'],
   other: ['Open {url}.', 'Find the place named in the finding and check it by hand.']
 };
-// Строки с сайта не должны ломать разметку отчёта: переводы строк схлопываются, обратные кавычки и начало строки экранируются
+// Site strings must not break the report markup: newlines are collapsed, backticks and line starts are escaped
 const md = (x) => String(x == null ? '' : x).replace(/[\r\n]+/g, ' ').replace(/`/g, "'").replace(/^\s*([#>*+\-\[])/, '\\$1');
 export function bountyReport(store, list, o) {
   const plat = o.platform, all = groupFindings(list), groups = all.slice(0, 30), L = [];

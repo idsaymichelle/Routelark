@@ -1,6 +1,6 @@
-// D7: трекеры, запись сессий на страницах с формами, cookies трекеров и состояние согласия, персональные данные в адресах к третьим сторонам.
-// Свой короткий список хостов: готовые списки (Tracker Radar, Disconnect) под лицензией CC BY-NC-SA, их не копируем.
-// Снимок делается после загрузки страницы, поэтому «до согласия» доказать нельзя — находки это говорят.
+// Trackers, session recording on pages with forms, tracker cookies and consent state, personal data in third-party addresses.
+// Own short host list: ready-made lists (Tracker Radar, Disconnect) are CC BY-NC-SA, so we do not copy them.
+// The snapshot is taken after page load, so "before consent" cannot be proven; findings say so.
 import { siteOf } from './scope.js';
 import { luhn, cardBrandOk } from './pii.js';
 
@@ -23,14 +23,14 @@ export function classifyHost(host) {
 }
 
 const TRACKER_COOKIE = /^(?:_ga(?:_.*)?|_gid|_gcl_au|_fbp|_fbc|_hjid|_hjSessionUser_.*|_clck|_clsk|_ym_uid|_ym_d|_ym_isad|_ttp|MUID|_uetvid|_uetsid|IDE)$/;
-// consent: результаты typeof для глобальных объектов CMP из снимка (функции не вызываются)
+// consent: typeof results for CMP global objects from the snapshot (functions are not called)
 export function consentCase(cookies, consent) {
   const trackers = cookies.filter((c) => TRACKER_COOKIE.test(c.name)).map((c) => c.name);
   if (!trackers.length) return null;
   const names = new Set(cookies.map((c) => c.name));
   const val = (n) => { const c = cookies.find((x) => x.name === n); if (!c) return ''; try { return decodeURIComponent(c.value); } catch (e) { return c.value; } };
   const opt = val('OptanonConsent'), cc = val('CookieConsent'), interacted = /interactionCount=[1-9]/.test(opt);
-  // Отказ засчитывается по категории своей cookie: аналитика (C0002 / statistics) или реклама (C0004 / marketing)
+  // A refusal is counted by the cookie's own category: analytics (C0002 / statistics) or advertising (C0004 / marketing)
   const ADS = /^(?:_fbp|_fbc|_gcl_au|IDE|MUID|_uetvid|_uetsid|_ttp)$/;
   const cat = (n) => (ADS.test(n) ? ['C0004', 'marketing'] : ['C0002', 'statistics']);
   const rejected = trackers.some((n) => { const [g, k] = cat(n); return (interacted && new RegExp(g + ':0').test(opt)) || new RegExp(k + ':false').test(cc); });
@@ -45,7 +45,7 @@ export function consentCase(cookies, consent) {
 const PII_PARAM = { email: 2, mail: 2, e_mail: 2, phone: 2, tel: 2, msisdn: 2, ssn: 3, inn: 3, snils: 3, first_name: 1, last_name: 1, dob: 1, birthday: 1 };
 const AFTER = 'The snapshot is taken after the page loaded, so the time a cookie was set is not known';
 
-// urls: адреса ресурсов и трафика; html: разметка; cookies: видимые cookies; referrer: действующая политика
+// urls: resource and traffic addresses; html: markup; cookies: visible cookies; referrer: effective policy
 export function trackerFindings({ urls, pageHost, html, cookies, consent, referrer }) {
   const out = [], site = siteOf(pageHost || ''), seen = new Set(), cats = {};
   const leaky = /^(?:unsafe-url|no-referrer-when-downgrade)$/i.test(referrer || '');

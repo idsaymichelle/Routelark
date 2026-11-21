@@ -1,5 +1,5 @@
-// E1: каналы реального времени — WebSocket с подпротоколом, Socket.IO, SignalR, ключи Pusher/Ably/PubNub, учётные данные TURN.
-// Адреса только записываются, не запрашиваются (к SignalR /negotiate не добавляется). Форматы длины ключей Pusher/PubNub не подтверждены.
+// Realtime channels: WebSocket with subprotocol, Socket.IO, SignalR, Pusher/Ably/PubNub keys, TURN credentials.
+// Addresses are only recorded, not requested (SignalR /negotiate is not appended). Pusher/PubNub key length formats are unconfirmed.
 const TOKEN_Q = /[?&][\w-]*(?:token|ticket|auth|jwt|key|sig)[\w-]*=/i;
 export function realtimeFindings(text) {
   const out = [], seen = new Set(); let m, n = 0;
@@ -9,12 +9,12 @@ export function realtimeFindings(text) {
     if (!authed && !TOKEN_Q.test(raw) && !/\/\/(?:localhost|127\.0\.0\.1)\b/.test(raw) && n++ < 50) out.push({ t: 'simple', title: 'Realtime endpoint without a token in the handshake: ' + raw, risk: 1, why: ['Cookie-authenticated socket: check that the server rejects a foreign Origin on the handshake (CSWSH)'], at });
   };
   const re = (r) => { r.lastIndex = 0; return r; };
-  const WSP = re(/new WebSocket\(\s*(["'`])([^"'`\n]{1,400})\1(?:\s*,\s*(\[[^\]]{0,200}\]|["'`][^"'`]{1,80}["'`]))?/g); // подпротоколы необязательны
+  const WSP = re(/new WebSocket\(\s*(["'`])([^"'`\n]{1,400})\1(?:\s*,\s*(\[[^\]]{0,200}\]|["'`][^"'`]{1,80}["'`]))?/g); // subprotocols are optional
   while ((m = WSP.exec(text))) hit(m[2], m.index, 'ws', /token|jwt|bearer|auth/i.test(m[3] || ''));
   if (/socket\.io|\bio(?:\.connect)?\(\s*["'`]https?:/.test(text)) {
     const SIO = re(/(?:^|[^\w$.])io(?:\.connect)?\(\s*(?:(["'`])(https?:\/\/[^"'`\n]{1,200})\1)?\s*(,\s*\{[^}]{0,400}\})?/g);
     while ((m = SIO.exec(text))) {
-      const opts = m[3] || '', path = (/path\s*:\s*(["'`])([^"'`]{1,120})\1/.exec(opts) || [])[2] || (/\bpath\s*:/.test(opts) ? '' : '/socket.io/'); // path есть, но не литерал: не выдумываем по умолчанию
+      const opts = m[3] || '', path = (/path\s*:\s*(["'`])([^"'`]{1,120})\1/.exec(opts) || [])[2] || (/\bpath\s*:/.test(opts) ? '' : '/socket.io/'); // path exists but is not a literal: do not invent a default
       if (!m[2] && !opts) continue;
       hit((m[2] || '').replace(/\/$/, '') + path, m.index, 'ws', /auth\s*:\s*\{/.test(opts));
     }
@@ -22,7 +22,6 @@ export function realtimeFindings(text) {
   const SR = re(/\.withUrl\(\s*(["'`])([^"'`\n]{1,400})\1/g);
   while ((m = SR.exec(text))) hit(m[2], m.index, 'ws', /accessTokenFactory/.test(text.slice(m.index, m.index + 300)));
   if ((m = /skipNegotiation\s*:\s*(?:!0|true)/.exec(text))) out.push({ t: 'simple', title: 'SignalR skips negotiation (WebSocket only)', risk: 0, why: ['The client connects straight over WebSocket; check the handshake checks on the hub'], at: m.index });
-  // Ключи провайдеров
   const PU = re(/new Pusher\(\s*(["'`])([0-9a-f]{20})\1/g);
   while ((m = PU.exec(text))) {
     out.push({ t: 'simple', title: 'Pusher app key', risk: 0, why: ['Public by design: check the auth endpoint for private and presence channels'], at: m.index });

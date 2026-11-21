@@ -1,12 +1,12 @@
-// Метаданные файлов: размеры картинок, EXIF (камера, программа, автор, дата, GPS), текстовые блоки PNG, XMP, комментарии.
-// Чистая функция над байтами, без библиотек. Разбирается только то, что полезно для разведки.
+// File metadata: image sizes, EXIF (camera, software, author, date, GPS), PNG text chunks, XMP, comments.
+// Pure function over bytes, no libraries. Parses only what is useful for recon.
 
 const ascii = (b, s, n) => { let t = ''; for (let i = s; i < s + n && i < b.length; i++) t += String.fromCharCode(b[i]); return t; };
-// PDF hex-строка: UTF-16BE с BOM FEFF или однобайтовая
+// PDF hex string: UTF-16BE with BOM FEFF or single-byte
 const hexStr = (h) => { const b = (h.replace(/\s/g, '').match(/../g) || []).map((x) => parseInt(x, 16)); let t = ''; if (b[0] === 0xfe && b[1] === 0xff) for (let i = 2; i + 1 < b.length; i += 2) t += String.fromCharCode((b[i] << 8) | b[i + 1]); else for (const c of b) t += String.fromCharCode(c); return t; };
 const clean = (s) => String(s).replace(/\0+$/, '').trim();
 
-// EXIF: TIFF-заголовок внутри JPEG (APP1) или PNG (eXIf). Возвращает пары [поле, значение]
+// EXIF: TIFF header inside JPEG (APP1) or PNG (eXIf). Returns [field, value] pairs
 const TAGS = { 0x010f: 'Camera make', 0x0110: 'Camera model', 0x0131: 'Software', 0x013b: 'Artist', 0x8298: 'Copyright', 0x0132: 'Modified', 0x9003: 'Taken', 0x010e: 'Description', 0xa430: 'Camera owner', 0xa431: 'Camera serial' };
 function exif(b, t) {
   const out = [];
@@ -35,7 +35,7 @@ function exif(b, t) {
   if (gps[2] != null && gps[4] != null) out.unshift(['GPS location', (gps[1] === 'S' ? -gps[2] : gps[2]).toFixed(6) + ', ' + (gps[3] === 'W' ? -gps[4] : gps[4]).toFixed(6)]);
   return out;
 }
-// XMP — XML внутри файла: программа, автор, история правок
+// XMP is XML inside the file: software, author, edit history
 function xmp(text) {
   const out = [], get = (re, name) => { const m = re.exec(text); if (m) out.push([name, clean(m[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' '))]); };
   get(/<xmp:CreatorTool>([^<]+)</, 'Created with'); get(/xmp:CreatorTool="([^"]+)"/, 'Created with');
@@ -52,7 +52,7 @@ export function fileMeta(bytes) {
     format = 'JPEG';
     for (let o = 2; o + 4 < b.length && b[o] === 0xff;) {
       const m = b[o + 1], len = (b[o + 2] << 8) | b[o + 3];
-      if (m === 0xda) break; // дальше сами пиксели
+      if (m === 0xda) break; // the pixels follow
       if (m === 0xe1 && ascii(b, o + 4, 4) === 'Exif') out.push(...exif(b, o + 10));
       else if (m === 0xe1 && ascii(b, o + 4, 28) === 'http://ns.adobe.com/xap/1.0/') out.push(...xmp(ascii(b, o + 4, len - 2)));
       else if (m === 0xfe) out.push(['Comment', clean(ascii(b, o + 4, len - 2))]);
@@ -66,7 +66,7 @@ export function fileMeta(bytes) {
       if (type === 'IHDR') out.push(['Size', (((b[d] << 24) | (b[d + 1] << 16) | (b[d + 2] << 8) | b[d + 3]) >>> 0) + ' × ' + (((b[d + 4] << 24) | (b[d + 5] << 16) | (b[d + 6] << 8) | b[d + 7]) >>> 0)]);
       else if (type === 'tEXt' || type === 'iTXt') {
         const raw = ascii(b, d, len), k = raw.indexOf('\0'), key = raw.slice(0, k);
-        // iTXt: флаг сжатия, метод, язык, переведённый ключ; сжатые пропускаем
+        // iTXt: compression flag, method, language, translated key; compressed ones are skipped
         const val = type === 'tEXt' ? raw.slice(k + 1) : raw.charCodeAt(k + 1) ? '' : raw.slice(k + 3).split('\0').slice(2).join('\0');
         if (key === 'XML:com.adobe.xmp') out.push(...xmp(val)); else if (val) out.push([key, clean(val).slice(0, 300)]);
       } else if (type === 'eXIf') out.push(...exif(b, d));
@@ -95,7 +95,7 @@ export function fileMeta(bytes) {
       out.push(...xmp(text));
     }
   }
-  // Пути на компьютере автора выдают имя пользователя и устройство папок
+  // Paths on the author's computer reveal the username and folder layout
   const paths = [];
   for (const [, v] of out) for (const m of String(v).matchAll(/[A-Za-z]:\\(?:Users|Documents and Settings)\\[^\\\s"]+|\/(?:Users|home)\/[^/\s"]+/g)) paths.push(m[0]);
   return { format, fields: out.filter(([, v]) => v), paths: Array.from(new Set(paths)) };

@@ -50,7 +50,7 @@ test('свои правила срабатывают на загруженных
 });
 
 test('link ↔ сборщик через прямой канал: снимок, файл, cookies', async () => {
-  // Как в закладке: сборщик и интерфейс в одном окне, вкладка получает канал в __rlPort
+  // Like the bookmarklet: collector and UI share one window; the tab gets its channel in __rlPort
   const pageWin = { setTimeout, location: { href: PAGE, origin: 'https://app.example.org' }, document: { contentType: 'text/html', cookie: '', documentElement: { outerHTML: SNAP.html }, querySelector: () => null, querySelectorAll: () => [] }, performance: { getEntriesByType: () => [] }, localStorage: { length: 0 }, sessionStorage: { length: 0 }, fetch: async (u) => ({ ok: true, status: 200, headers: new Map(), text: async () => FILES[u] || '' }) };
   const tab = { closed: false, addEventListener() {} }, ch = channel(pageWin, tab);
   tab.__rlPort = ch.port;
@@ -64,7 +64,7 @@ test('link ↔ сборщик через прямой канал: снимок, 
   const cs = await link.setCookie({ name: 'a', value: '1', path: '/', attrsKnown: true });
   assert.equal(pageWin.document.cookie, 'a=1; path=/');
   assert.ok(Array.isArray(cs.cookies));
-  tab.closed = true; assert.equal(link.closed, false); // страница жива, даже если вкладку закрыли
+  tab.closed = true; assert.equal(link.closed, false); // page stays alive even if the tab is closed
 });
 
 test('npm: незарегистрированный scoped-пакет даёт находку, без настройки запросов нет', async () => {
@@ -152,18 +152,18 @@ test('тихий режим: ни одного своего запроса — �
   const store = new Store(SNAP.url);
   await runScan({ store, snapshot: SNAP, fetchText: fetcher(asked), settings: set, isStopped: () => false, osv: set.osv ? async () => { calls.push('osv'); return []; } : null, npm: set.npmCheck ? async () => { calls.push('npm'); return 200; } : null, history: memory() });
   assert.deepEqual(asked, []); assert.deepEqual(calls, []);
-  assert.ok(store.items.length > 0); // снимок страницы всё равно разобран
+  assert.ok(store.items.length > 0); // snapshot is still parsed
   assert.equal(settingsFor('full', { osv: true }).osv, true);
 });
 
 test('кеш режимов: возврат без нового скана, сброс во время скана, ошибка не сохраняется', async () => {
   const { modeCache, scanChanged } = await import('../src/app/modes.js');
   const c = modeCache(), a = { store: 'A' }, b = { store: 'B' };
-  const ta = c.start('quiet', a); assert.equal(c.get('quiet'), a); // идущий скан виден сразу
+  const ta = c.start('quiet', a); assert.equal(c.get('quiet'), a); // a running scan is visible at once
   assert.ok(c.finish('quiet', ta, { store: 'A', diff: 1 }, true)); assert.equal(c.get('quiet').diff, 1);
-  const tb = c.start('full', b); c.drop('full'); // настройки сменились во время скана
+  const tb = c.start('full', b); c.drop('full'); // settings changed during the scan
   assert.equal(c.finish('full', tb, b, true), false); assert.equal(c.get('full'), null);
-  const t2 = c.start('full', b); assert.equal(c.finish('full', t2, b, false), false); assert.equal(c.get('full'), null); // упал — не сохранён
+  const t2 = c.start('full', b); assert.equal(c.finish('full', t2, b, false), false); assert.equal(c.get('full'), null); // failed: not saved
   assert.deepEqual(c.drop(), ['quiet', 'full']); assert.equal(c.get('quiet'), null);
   assert.ok(scanChanged({ depth: 3 }, { depth: 2 })); assert.ok(!scanChanged({ depth: 3, lang: 'ru' }, { depth: 3, lang: 'en' }));
 });

@@ -1,4 +1,4 @@
-// Заголовки ответа документа: проблемы и полная таблица.
+// Document response headers: issues and the full table.
 import { h, dot, button } from './dom.js';
 import { parseHeaders } from '../../core.js';
 import { row, details } from './findings.js';
@@ -12,7 +12,7 @@ export function renderHeaders(ctx) {
   list.forEach((f) => left.append(row(f, app, () => actions.select(f.id), f === sel)));
   const right = h('div', { class: 'col' });
   if (sel) right.append(details(sel, ctx));
-  // Если вкладка не смогла прочитать заголовки (COOP, режим без запросов, файл захвата), их можно вставить вручную
+  // If the tab could not read headers (COOP, no-request mode, capture file), they can be pasted manually
   if (!store.docHeaders || store.headersPasted) {
     const st = app.hdr || (app.hdr = { text: '', note: '' });
     right.append(h('section', { class: 'detail' }, h('h2', { text: t('Paste response headers') }),

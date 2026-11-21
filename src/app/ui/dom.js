@@ -1,4 +1,4 @@
-// Маленькие помощники DOM. Данные сайта вставляются только через textContent.
+// Small DOM helpers. Site data is inserted only via textContent.
 import { t, getLang, plural as pluralI18n } from '../../i18n.js';
 export function h(tag, attrs, ...kids) {
   const el = document.createElement(tag);
@@ -24,12 +24,12 @@ export function icon(name) {
   return s;
 }
 export const iconButton = (name, title, onclick) => h('button', { class: 'ib', type: 'button', title, 'aria-label': title, onclick }, icon(name));
-// Кнопка языка показывает ДРУГОЙ язык: RU при английском, EN при русском
+// The language button shows the OTHER language: RU when English, EN when Russian
 export function langButton(actions) {
   const next = getLang() === 'en' ? 'ru' : 'en';
   return h('button', { class: 'btn lang', type: 'button', title: t('Switch language'), 'aria-label': t('Switch language') + ': ' + next.toUpperCase(), onclick: () => actions.setLang(next) }, next.toUpperCase());
 }
-// Значок копирования: после клика на секунду показывает галочку
+// Copy icon: after a click shows a checkmark for a second
 export function copyIcon(text, title) {
   const b = iconButton('copy', title || t('Copy'), () => { copy(String(text == null ? '' : text)); b.replaceChildren(icon('check')); b.classList.add('done'); setTimeout(() => { b.replaceChildren(icon('copy')); b.classList.remove('done'); }, 1200); });
   b.classList.add('cp');
@@ -37,12 +37,12 @@ export function copyIcon(text, title) {
 }
 export const button = (text, onclick, cls, title) => h('button', { class: 'btn' + (cls ? ' ' + cls : ''), type: 'button', onclick, title }, text);
 export const plural = pluralI18n;
-// Подпись продукта: параметры маршрута подсвечены акцентом
+// Product label: route parameters are highlighted with the accent
 export function route(text) { const span = h('span', { class: 'route' }); String(text).split(/(\{[^}]*\})/).forEach((part, i) => span.append(i % 2 ? h('b', { text: part }) : part)); return span; }
 export function copy(text) {
   if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text).catch(fallback);
   fallback();
-  function fallback() { const t = h('textarea'); t.value = text; document.body.append(t); t.select(); try { document.execCommand('copy'); } catch (e) { /* копирование запрещено */ } t.remove(); }
+  function fallback() { const t = h('textarea'); t.value = text; document.body.append(t); t.select(); try { document.execCommand('copy'); } catch (e) { /* copy not allowed */ } t.remove(); }
 }
 export function download(name, text, mime) {
   const url = URL.createObjectURL(new Blob([text], { type: mime || 'text/plain' })), a = h('a', { href: url, download: name });
@@ -54,7 +54,7 @@ export function openInTab(text, mime) {
   window.open(url, '_blank', 'noopener');
   setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
-// Значения английские; в интерфейсе выводятся через t()
+// Values are English; shown through t() in the UI
 export const LV = { info: 'info', low: 'low', medium: 'medium', high: 'high', critical: 'critical' };
 export const CONF_LABEL = { low: 'Low', medium: 'Medium', high: 'High' };
 export const dot = (level, title) => h('span', { class: 'dot ' + level, title: title || t(LV[level]), role: 'img', 'aria-label': t(LV[level]) });

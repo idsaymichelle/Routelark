@@ -1,11 +1,11 @@
-// Спецификация OpenAPI/Swagger → эндпоинты. JSON полностью, YAML — только раздел paths.
+// OpenAPI/Swagger spec -> endpoints. JSON in full, YAML only the paths section.
 const METHODS = ['get', 'post', 'put', 'patch', 'delete', 'head', 'options', 'trace'];
 
 function fromJson(j) {
   if (!j || (!j.openapi && !j.swagger) || !j.paths || typeof j.paths !== 'object') return null;
   let base = typeof j.basePath === 'string' ? j.basePath : '';
-  if (!base && Array.isArray(j.servers) && j.servers[0] && typeof j.servers[0].url === 'string') { const sv = j.servers[0]; try { base = new URL(sv.url.replace(/\{(\w+)\}/g, (a, n) => String((sv.variables && sv.variables[n] && sv.variables[n].default) || 'x')), 'http://x').pathname; } catch (e) { /* относительный мусор */ } } // {scheme}:// подставляем default
-  const ref = (x) => { for (let i = 0; x && typeof x.$ref === 'string' && i < 5; i++) { x = x.$ref.startsWith('#/') ? x.$ref.slice(2).split('/').reduce((o, k) => o && o[k.replace(/~1/g, '/').replace(/~0/g, '~')], j) : null; } return x; }; // $ref только внутри документа
+  if (!base && Array.isArray(j.servers) && j.servers[0] && typeof j.servers[0].url === 'string') { const sv = j.servers[0]; try { base = new URL(sv.url.replace(/\{(\w+)\}/g, (a, n) => String((sv.variables && sv.variables[n] && sv.variables[n].default) || 'x')), 'http://x').pathname; } catch (e) { /* relative junk */ } } // substitute the default for {scheme}://
+  const ref = (x) => { for (let i = 0; x && typeof x.$ref === 'string' && i < 5; i++) { x = x.$ref.startsWith('#/') ? x.$ref.slice(2).split('/').reduce((o, k) => o && o[k.replace(/~1/g, '/').replace(/~0/g, '~')], j) : null; } return x; }; // $ref only within the document
   base = base.replace(/\/$/, '');
   const out = [];
   for (const [p, raw] of Object.entries(j.paths)) {
@@ -22,15 +22,15 @@ function fromJson(j) {
 function fromYaml(text) {
   if (!/^\s*(?:openapi|swagger)\s*:/m.test(text.slice(0, 20000))) return null;
   const lines = text.split(/\r?\n/), out = [];
-  let inPaths = false, pathIndent = -1, cur = null, base = '', last = null; // shortcut: YAML читается построчно, без $ref и якорей
+  let inPaths = false, pathIndent = -1, cur = null, base = '', last = null; // shortcut: YAML is read line by line, without $ref and anchors
   for (const l of lines) {
     if (!l.trim() || /^\s*#/.test(l)) continue;
     const ind = l.length - l.trimStart().length;
     if (!inPaths && ind === 0) { const b = /^basePath\s*:\s*['"]?([^'"\s#]+)/.exec(l); if (b) base = b[1].replace(/\/$/, ''); }
-    if (!inPaths && !base && /^\s*-\s*url\s*:/.test(l)) { const u = /url\s*:\s*['"]?([^'"\s#]+)/.exec(l); try { base = new URL(u[1], 'http://x').pathname.replace(/\/$/, ''); } catch (e) { /* относительный */ } }
+    if (!inPaths && !base && /^\s*-\s*url\s*:/.test(l)) { const u = /url\s*:\s*['"]?([^'"\s#]+)/.exec(l); try { base = new URL(u[1], 'http://x').pathname.replace(/\/$/, ''); } catch (e) { /* relative */ } }
     if (/^['"]?paths['"]?\s*:\s*(?:#.*)?$/.test(l)) { inPaths = true; continue; }
     if (!inPaths) continue;
-    if (ind === 0) break; // следующий раздел верхнего уровня
+    if (ind === 0) break; // next top-level section
     const key = /^\s*['"]?([^'":]+?)['"]?\s*:/.exec(l);
     if (!key) continue;
     if (key[1].startsWith('/') && (pathIndent < 0 || ind === pathIndent)) { pathIndent = ind; cur = key[1]; continue; }

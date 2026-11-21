@@ -1,4 +1,4 @@
-// Вкладка «Соответствие»: требования ASVS 5.0 V3 и тесты WSTG v4.2 по данным из браузера. Это подсказки, а не аудит.
+// Compliance tab: ASVS 5.0 V3 requirements and WSTG v4.2 tests from browser data. Hints, not an audit.
 import { h } from './dom.js';
 import { t } from '../../i18n.js';
 import { complianceRows } from '../../core/compliance.js';

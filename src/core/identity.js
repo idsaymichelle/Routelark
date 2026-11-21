@@ -1,7 +1,7 @@
-// Облачные и identity-конфиги (A3) и ИИ в клиентском коде (A4, H4). Только чтение уже собранного текста, без запросов.
-// Каждая находка: { kind, title, risk, why: [...], at } — at это позиция в тексте для строки и фрагмента.
-const PH = /example|your[-_]?project|YOUR_|xxxx|placeholder/i; // для текста системного промпта
-const PHV = /^(?:example|placeholder|x{4,}|your[-_][\w-]*)$/i; // для значения: целая первая метка, а не подстрока (examplecorp-prod — настоящее имя)
+// Cloud and identity configs and AI in client code. Only reads already collected text, no requests.
+// Each finding: { kind, title, risk, why: [...], at }, where at is the text position for the line and snippet.
+const PH = /example|your[-_]?project|YOUR_|xxxx|placeholder/i; // for system prompt text
+const PHV = /^(?:example|placeholder|x{4,}|your[-_][\w-]*)$/i; // for a value: the whole first label, not a substring (examplecorp-prod is a real name)
 
 export function scanIdentity(text) {
   const out = [], seen = new Set();
@@ -22,15 +22,15 @@ export function scanIdentity(text) {
   if ((m = /\/realms\/([\w.-]{1,64})\/protocol\/openid-connect\//.exec(text))) add('Keycloak realm: ' + m[1], 0, 'Check the redirect URIs and whether self-registration is enabled for the realm', m.index);
   if ((m = /\b[a-z0-9-]{1,63}\.(?:okta|oktapreview|okta-emea)\.com\b/.exec(text))) add('Okta org: ' + m[0], 0, 'Check the redirect URIs and self-service registration of the org', m.index);
   if ((auth0 || /\/realms\//.test(text)) && (m = /redirect_?uri["']?\s*[:=]\s*["'](https?:\/\/[^"'\s]{4,200})["']/i.exec(text) || /redirect_uri=(https?(?::|%3A)(?:\/|%2F){2}[^"'\s&]{4,200})/i.exec(text))) {
-    let u = m[1]; try { u = decodeURIComponent(u); } catch (e) { /* оставляем как есть */ }
-    const loose = /^http:\/\/(?!(?:localhost|127\.\d{1,3}\.\d{1,3}\.\d{1,3}|\[::1\])(?=[:\/]|$))/.test(u) || u.includes('*'); // localhost.evil.io — не локальный
+    let u = m[1]; try { u = decodeURIComponent(u); } catch (e) { /* keep as is */ }
+    const loose = /^http:\/\/(?!(?:localhost|127\.\d{1,3}\.\d{1,3}\.\d{1,3}|\[::1\])(?=[:\/]|$))/.test(u) || u.includes('*'); // localhost.evil.io is not local
     add('Redirect URI: ' + u, loose ? 2 : 1, 'A loose redirect URI lets tokens go to another site: check the exact allow list on the server', m.index);
   }
   return out;
 }
 
 const PROVIDERS = /^(?:api\.openai\.com|api\.anthropic\.com|generativelanguage\.googleapis\.com|api\.mistral\.ai|api\.groq\.com|api\.cohere\.ai)$/;
-// Подсказки по LiteLLM (H4): номера сверены с GHSA; формулировка — «проверьте версию», не «уязвим»
+// LiteLLM hints: numbers checked against GHSA; wording is "check the version", not "vulnerable"
 const HINT_MCP = ['LiteLLM before 1.84.0: CVE-2026-59822, MCP auth bypass via OAuth2 passthrough (GHSA-7488-6r32-c95q). Check the version in your deployment',
   'LiteLLM 1.74.2 to before 1.83.7: CVE-2026-42271, command execution via MCP stdio test endpoints, needs a valid proxy key (GHSA-v4p8-mg3p-g94g). Check the version'];
 const HINT_GW = HINT_MCP.concat('LiteLLM before 1.83.0: CVE-2026-35030 and CVE-2026-35029, JWT cache and privilege escalation. Check the version and whether JWT auth is on');
@@ -56,7 +56,7 @@ export function scanAi(text, hits, secrets, scanSecrets) {
     while ((m = re.exec(text)) && n++ < 10) add('MCP endpoint: ' + m[1], 1, ['An MCP server is reachable from the page: check its authentication and Origin validation'].concat(/litellm/i.test(text) ? HINT_MCP : []), m.index);
     if ((m = /@modelcontextprotocol\/sdk[^"'`]{0,60}/.exec(text))) add('MCP client in the page', 1, ['The page contains an MCP client: check which servers and tools it can reach'], m.index);
   }
-  // OWASP LLM07: системный промпт в клиентском коде
+  // OWASP LLM07: system prompt in client code
   const re = /(?:\b(?:system|systemPrompt|system_prompt|SYSTEM_PROMPT)["']?\s*[:=]\s*|role\s*:\s*["']system["']\s*,\s*content\s*:\s*)(["'`])((?:(?!\1)[^\\]|\\.){200,4000}?)\1/g;
   let n = 0;
   while ((m = re.exec(text)) && n++ < 5) {

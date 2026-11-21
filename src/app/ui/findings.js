@@ -1,4 +1,4 @@
-// Разделы с находками: список слева, подробности справа.
+// Finding sections: list on the left, details on the right.
 import { mapping, TOP10_2025 } from '../../core/mapping.js';
 import { isShown, hiddenReason } from '../visible.js';
 import { h, button, route, copy, copyIcon, download, dot, kv, LV, CONF_LABEL } from './dom.js';
@@ -15,11 +15,11 @@ export function mainText(f, app) {
   if (f.host && f.pageHost && f.host !== f.pageHost && f.resolved && f.kind !== 'cloud') return maskHost(app, f.resolved);
   return ROUTE_KINDS.has(f.kind) ? f.url : t(f.url);
 }
-// Поиск: обычный текст или регулярка в слешах со спецсимволами, например /^\/api\/v\d/. Путь вида /api/users/ остаётся текстом
-// Длина проверяемой строки ограничена: тяжёлая регулярка не подвесит вкладку на длинном значении
+// Search: plain text or a regex in slashes with special characters, e.g. /^\/api\/v\d/. A path like /api/users/ stays text
+// The tested string is length-capped: a heavy regex will not hang the tab on a long value
 function matcher(q) {
   const m = /^\/(.+)\/$/.exec(q);
-  if (m && /[\\^$*+?()[\]|{}]/.test(m[1])) { try { const re = new RegExp(m[1], 'i'); return (s) => re.test(s.slice(0, 2000)); } catch (e) { /* недописанная регулярка — ищем как текст */ } }
+  if (m && /[\\^$*+?()[\]|{}]/.test(m[1])) { try { const re = new RegExp(m[1], 'i'); return (s) => re.test(s.slice(0, 2000)); } catch (e) { /* unfinished regex: search as text */ } }
   return (s) => s.toLowerCase().includes(q.toLowerCase());
 }
 function visible(app, list) {
@@ -32,7 +32,7 @@ function visible(app, list) {
   });
 }
 const srcOf = (f) => { const s = f.sources[0]; return s ? String(tLabel(s.file)).replace(/^.*\//, '').split('#').pop() + ':' + s.line : ''; };
-// B7: новая или уже была в прошлом скане; Set строится один раз на сравнение, а не перебором на каждую строку
+// New or already present in the previous scan; the Set is built once per comparison, not scanned per row
 const ADDED = new WeakMap();
 const isNewOf = (app, f) => { if (!app.diff) return false; if (!ADDED.has(app.diff)) ADDED.set(app.diff, new Set(app.diff.added)); return ADDED.get(app.diff).has(f); };
 export function row(f, app, onclick, selected) {
@@ -64,12 +64,12 @@ export function details(f, ctx) {
   }
   const snip = app.reveal && f.snippetRaw ? f.snippetRaw : f.snippet;
   if (snip) d.append(h('h3', { text: t('Snippet') }), h('div', { class: 'copybox' }, h('pre', { text: snip }), copyIcon(snip)));
-  // Файл, текст которого сохранён, открывается в «Файлах» на нужной строке
+  // A file whose text is saved opens in "Files" at the right line
   if (f.sources.length) d.append(h('h3', { text: t('Where found') }), h('ul', { class: 'mono' }, f.sources.slice(0, 10).map((s) => {
     const label = maskHost(app, tLabel(s.file)) + ':' + s.line + ':' + s.col + (s.via ? ' (' + s.via + ')' : '');
     return h('li', {}, ctx.store.texts && ctx.store.texts.has(s.file) ? h('button', { class: 'link', type: 'button', title: t('Open in Files'), onclick: () => actions.openFile(s.file, s.line, s.col) }, label) : label);
   })));
-  // Как у значков копирования: на секунду подпись меняется на «Copied»
+  // Like the copy icons: the label changes to "Copied" for a second
   const cp = button(t('Copy'), () => { copy(value); cp.textContent = t('Copied'); setTimeout(() => { cp.textContent = t('Copy'); }, 1200); });
   const acts = h('div', { class: 'acts' }, cp);
   if (f.kind === 'external' && f.host && app.link) acts.append(button(t('Add {host} to scope and rescan', { host: f.host }), () => actions.addScope(f.host), 'pri'));
@@ -88,11 +88,11 @@ export function renderFindings(ctx, tab) {
   const { app, store, actions } = ctx;
   if (tab === 'params') return renderParams(ctx);
   const all = store.list().filter((f) => (KINDS[tab] || []).includes(f.kind)), list = visible(app, all);
-  // Выбранная находка показывается, даже если её скрыл фильтр (например, при переходе из «Обзора»)
+  // The selected finding is shown even if a filter hides it (e.g. when jumping from Overview)
   let sel = all.find((f) => f.id === app.sel);
   const left = h('div', { class: 'col list' }, toolbar(ctx, all.length, list.length, app.showHidden ? 0 : all.filter((f) => hiddenReason(f, app)).length));
   if (!list.length) left.append(h('p', { class: 'empty', text: all.length ? t('Nothing matches the filter') : t('Nothing here yet') }));
-  // Группировка: находки с путём собираются под заголовком из первых двух сегментов (/api/v2)
+  // Grouping: findings with a path are grouped under a heading of the first two segments (/api/v2)
   const prefix = (f) => (f.path ? (f.host && f.host !== f.pageHost ? f.host : '') + '/' + f.path.split('/').filter(Boolean).slice(0, 2).join('/') : t('Other'));
   const shown = app.group ? list.slice(0, 600).sort((a, b) => (prefix(a) < prefix(b) ? -1 : prefix(a) > prefix(b) ? 1 : 0)) : list.slice(0, 600);
   let last = null;
@@ -107,8 +107,8 @@ function renderParams(ctx) {
   const tbl = h('table', { class: 'table' }, h('thead', {}, h('tr', {}, h('th', { text: t('Parameter') }), h('th', { text: t('Risk') }), h('th', { text: t('Count') }), h('th', { text: t('Where') }))));
   const tb = h('tbody'); ps.slice(0, 500).forEach((p) => tb.append(h('tr', {}, h('td', { class: 'mono', text: p.name }), h('td', { class: 'rk' }, p.risky ? h('span', {}, dot('medium'), ' ' + p.risky) : ''), h('td', { class: 'num', text: p.count }), h('td', { class: 'mono muted', text: p.urls.join('  ') }))));
   tbl.append(tb); box.append(tbl);
-  // Словарь цели: слова со страницы и из путей, имена полей форм и ключи JSON. Для своего фаззинга в разрешённом скоупе
-  // Словарь пересчитывается, только когда появились новые находки или файлы
+  // Target wordlist: words from the page and paths, form field names and JSON keys. For your own fuzzing within the allowed scope
+  // Recomputed only when new findings or files appear
   const st = ctx.store, wkey = st.items.length + '|' + st.texts.size;
   if (!st._wl || st._wlKey !== wkey) { st._wl = wordlist(st); st._wlKey = wkey; }
   const wl = st._wl, host = (ctx.store.pageHost || 'site').replace(/[^\w.-]/g, '_');

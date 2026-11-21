@@ -4,7 +4,6 @@ import { readFileSync } from 'node:fs';
 import { createCollector } from '../src/collector.js';
 import { RU, setLang, t } from '../src/i18n.js';
 
-// --- закладка: 31-tests-F7, 15-loader-F3/F4/F6 ---
 function loaderEnv({ lang = 'en-US', unreadable = false } = {}) {
   const calls = { run: 0, alerts: [], blobs: [], mem: null, interval: null };
   const url = 'blob:https://shop.test/1';
@@ -54,7 +53,6 @@ test('15-F6: вкладка так и не загрузилась — говор
   assert.equal(calls.run, 0); assert.equal(calls.alerts.length, 1);
 });
 
-// --- сборщик: 31-tests-F6, 30-F5 ---
 function colEnv(extra = {}) {
   const sent = [], listeners = [], cleared = [], cb = {};
   const appWin = { closed: false, postMessage: (m) => sent.push(m) };
@@ -84,7 +82,7 @@ test('31-F6: cookieStore, service worker с push и PerformanceObserver выпо
   assert.equal(snap.sw.length, 2); assert.match(snap.sw[0].push, /^push\.test/); assert.equal(snap.sw[1].push, null);
   observed({ getEntries: () => [{ name: 'https://a.test/api/x', initiatorType: 'fetch', duration: 3, startTime: 1 }] });
   assert.equal(e.sent.find((m) => m.type === 'traffic').entries[0].url, 'https://a.test/api/x');
-  // 30-F5: после закрытия вкладки таймер и наблюдатель снимаются
+  // after the tab closes the timer and observer are removed
   e.appWin.closed = true; await e.cb.tick();
   assert.deepEqual(e.cleared, [7]); assert.equal(disconnected, true);
 });

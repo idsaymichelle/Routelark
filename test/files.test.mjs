@@ -47,7 +47,7 @@ test('crawl сохраняет тексты файлов и исходники �
     'https://app.example.org/app.js.map': JSON.stringify({ version: 3, sources: ['webpack:///src/a.ts', 'webpack:///node_modules/lib/i.js'], sourcesContent: ['const u = "/api/a";', 'lib'] })
   };
   await crawl({ store, seeds: [{ url: 'https://app.example.org/app.js' }], scope: makeScope({ pageUrl: store.pageUrl }), fetchText: async (u) => ({ ok: true, status: 200, headers: { 'content-type': 'text/javascript' }, text: files[u] }) });
-  // Библиотеки из node_modules не хранятся; сама карта с исходниками тоже — только её исходники
+  // node_modules libraries are not stored; the source map itself is not either, only its sources
   assert.deepEqual(Array.from(store.texts.keys()).sort(), ['https://app.example.org/app.js', 'https://app.example.org/app.js.map#src/a.ts']);
   assert.equal(store.texts.get('https://app.example.org/app.js.map#src/a.ts').text, 'const u = "/api/a";');
 });
@@ -77,7 +77,7 @@ test('compareFiles: изменённые, новые и пропавшие JS-ф
   const a = new Store('https://s.test/');
   a.addText('https://s.test/main.1a2b3c4d5e.js', 'v1', 'text/javascript'); a.addText('https://s.test/old.js', 'x'); a.addText('https://s.test/same.js', 's'); a.addText('https://s.test/', '<html>');
   const prev = fileHashes(a);
-  assert.equal(Object.keys(prev).length, 3); // HTML страницы не отслеживается
+  assert.equal(Object.keys(prev).length, 3); // page HTML is not tracked
   const b = new Store('https://s.test/');
   b.addText('https://s.test/main.9f8e7d6c5b.js', 'v2'); b.addText('https://s.test/same.js', 's'); b.addText('https://s.test/new.js', 'n');
   assert.deepEqual(compareFiles(prev, b), { added: ['https://s.test/new.js'], changed: ['https://s.test/main.9f8e7d6c5b.js'], removed: ['https://s.test/old.js'] });
@@ -128,10 +128,10 @@ test('historyEntry: все id сохраняются, подписи огран�
 
 test('fileMeta: JPEG с EXIF (камера, программа, GPS), PNG с текстом, SVG с путём автора', async () => {
   const { fileMeta } = await import('../src/core/meta.js');
-  // Собираем маленький JPEG: SOI, APP1 Exif (TIFF little-endian, IFD0: Make, Software, GPS-указатель), COM, SOF0
+  // Build a tiny JPEG: SOI, APP1 Exif (TIFF little-endian, IFD0: Make, Software, GPS pointer), COM, SOF0
   const tiff = [], u16 = (v) => tiff.push(v & 255, v >> 8), u32 = (v) => tiff.push(v & 255, (v >> 8) & 255, (v >> 16) & 255, v >>> 24);
   tiff.push(0x49, 0x49); u16(42); u32(8);
-  u16(3); // 3 записи в IFD0
+  u16(3);
   const make = 'Canon\0', soft = 'Photoshop 25\0';
   const dataStart = 8 + 2 + 3 * 12 + 4;
   u16(0x010f); u16(2); u32(make.length); u32(dataStart);
@@ -157,7 +157,7 @@ test('fileMeta: JPEG с EXIF (камера, программа, GPS), PNG с т�
   const f = Object.fromEntries(m.fields);
   assert.equal(f['Camera make'], 'Canon'); assert.equal(f.Software, 'Photoshop 25'); assert.equal(f.Comment, 'made by bob');
   assert.equal(f.Size, '320 × 240'); assert.equal(f['GPS location'], '55.750000, 37.600000');
-  // PNG: IHDR 2×3 и tEXt Author
+  // PNG: IHDR 2x3 and tEXt Author
   const be = (v) => [v >>> 24, (v >> 16) & 255, (v >> 8) & 255, v & 255];
   const chunk = (type, data) => [...be(data.length), ...[...type].map((c) => c.charCodeAt(0)), ...data, 0, 0, 0, 0];
   const png = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, ...chunk('IHDR', [...be(2), ...be(3), 8, 6, 0, 0, 0]), ...chunk('tEXt', [...'Author\0C:\\Users\\alice\\pic.png'].map((c) => c.charCodeAt(0))), ...chunk('IEND', [])]);
@@ -201,7 +201,7 @@ test('B6: метаданные Office (ZIP + deflate-raw) и шрифта', asyn
   const m = await officeMeta(new Uint8Array(Buffer.concat([...parts, cdb, end])));
   assert.equal(m.format, 'Word document');
   assert.ok(m.fields.some(([k, v]) => k === 'Author' && v === 'Ivan Petrov') && m.fields.some(([k, v]) => k === 'Last modified by' && v === 'admin'));
-  // Минимальный TTF с таблицей name: Family = "Acme Sans"
+  // Minimal TTF with a name table: Family = "Acme Sans"
   const str = Buffer.from('\0A\0c\0m\0e\0 \0S\0a\0n\0s');
   const name = Buffer.alloc(6 + 12); name.writeUInt16BE(1, 2); name.writeUInt16BE(18, 4); name.writeUInt16BE(3, 6); name.writeUInt16BE(1, 12); name.writeUInt16BE(str.length, 14);
   const head = Buffer.alloc(12 + 16); head.writeUInt32BE(0x00010000, 0); head.writeUInt16BE(1, 4); head.write('name', 12); head.writeUInt32BE(28, 20);

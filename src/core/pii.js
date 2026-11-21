@@ -1,6 +1,6 @@
 import { lineIndex } from '../core.js';
-// D6: персональные данные с контрольными суммами (Luhn, IBAN mod 97, ИНН, СНИЛС, ОГРН). Чистый модуль, без DOM.
-// Значение без ключевого слова рядом или без формата не считается: контрольная сумма сама по себе проходит у каждой десятой строки
+// Personal data with checksums (Luhn, IBAN mod 97, INN, SNILS, OGRN). Pure module, no DOM.
+// A value without a nearby keyword or without the format does not count: a checksum alone passes for every tenth string
 const LAT = 'A-Za-z', CYR = 'А-Яа-яЁё';
 export const KW = {
   card: new RegExp(`(?:^|[^${LAT}])(?:card|Card|cc|pan|Pan|credit|Credit|payment|Payment|cardnum|card_number)(?![a-z])|(?:^|[^${CYR}])(?:карт|Карт|платеж|Платеж)`),
@@ -20,7 +20,7 @@ const IBAN_LEN = { AL: 28, AD: 24, AT: 20, AZ: 28, BH: 22, BY: 28, BE: 16, BA: 2
 const TEST_PAN = new Set(['4111111111111111', '4242424242424242', '5555555555554444', '378282246310005', '6011111111111117', '4000000000000002', '5105105105105100', '3530111333300000']);
 const SSA_SPECIMEN = new Set(['078051120', '219099999']);
 const EMAIL = /\b[a-z0-9._%+-]{1,64}@(?!(?:example|test|domain|email|sentry)\.)[a-z0-9-]{1,63}(?:\.[a-z0-9-]{1,63}){0,5}\.[a-z]{2,24}\b/gi;
-const CAP = 2000; // шагов поиска на шаблон: кандидаты без контрольной суммы не должны вытеснять настоящие
+const CAP = 2000; // search steps per pattern: candidates without a checksum must not crowd out real ones
 
 export function luhn(d) {
   let sum = 0, dbl = false;
@@ -31,7 +31,7 @@ export function luhn(d) {
   }
   return sum % 10 === 0;
 }
-// Бренд по префиксу: без него Luhn проходит примерно в одной из десяти случайных строк
+// Brand by prefix: without it Luhn passes for about one in ten random strings
 export function cardBrandOk(d) {
   const p2 = +d.slice(0, 2), p4 = +d.slice(0, 4), p6 = +d.slice(0, 6);
   if (d[0] === '4') return [13, 16, 19].includes(d.length);
@@ -41,8 +41,8 @@ export function cardBrandOk(d) {
   if (p4 >= 3528 && p4 <= 3589) return d.length >= 16 && d.length <= 19;
   if (p4 >= 2200 && p4 <= 2204) return d.length === 16;
   if (p2 === 62) return d.length >= 16 && d.length <= 19;
-  if ((p2 === 30 && +d[2] <= 5) || p2 === 36 || p2 === 38) return d.length >= 14 && d.length <= 19; // Diners
-  if (p2 === 50 || (p2 >= 56 && p2 <= 58) || p4 === 6759) return d.length >= 12 && d.length <= 19; // Maestro
+  if ((p2 === 30 && +d[2] <= 5) || p2 === 36 || p2 === 38) return d.length >= 14 && d.length <= 19;
+  if (p2 === 50 || (p2 >= 56 && p2 <= 58) || p4 === 6759) return d.length >= 12 && d.length <= 19;
   return false;
 }
 export function ibanOk(s) {
@@ -65,7 +65,7 @@ export function innOk(d) {
   for (let i = 0; i < 11; i++) b += n[i] * w2[i];
   return (a % 11) % 10 === n[10] && (b % 11) % 10 === n[11];
 }
-// null: номер не проверяется (не выше 001-001-998)
+// null: the number is not validated (not above 001-001-998)
 export function snilsOk(s) {
   const d = s.replace(/\D/g, '');
   if (d.length !== 11) return false;
@@ -84,7 +84,7 @@ export function ssnOk(s) {
   return !(a === '000' || a === '666' || +a >= 900 || g === '00' || z === '0000');
 }
 
-// Границы без lookbehind (Safari до 16.4): префикс (?:^|[^…]) и группа 1 — само значение
+// Boundaries without lookbehind (Safari before 16.4): prefix (?:^|[^...]) and group 1 is the value itself
 const RE = {
   card: /(?:^|[^\d])((?:\d[ -]?){12,18}\d)(?!\d)/g,
   iban: /(?:^|[^A-Za-z0-9])([A-Z]{2}\d{2}(?:[ ]?[A-Za-z0-9]{4}){2,7}(?:[ ]?[A-Za-z0-9]{1,4})?)(?![A-Za-z0-9])/g,
@@ -100,7 +100,7 @@ const RE = {
   hex: /(?:^|[^0-9a-f])([0-9a-f]{32}|[0-9a-f]{40}|[0-9a-f]{64})(?![0-9a-f])/gi
 };
 
-// Hex-хеш пароля: баллы вместо «рядом есть слово password». Константы библиотек (кривые, хеши пустой строки) отсекаются
+// Hex password hash: scoring instead of "the word password is nearby". Library constants (curves, empty-string hashes) are dropped
 const HEX_SAFE = new Set(['d41d8cd98f00b204e9800998ecf8427e', 'da39a3ee5e6b4b0d3255bfef95601890afd80709', 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
   '79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798', '483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8', 'fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f', 'fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141',
   '7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffed', '1000000000000000000000000000000014def9dea2f79cd65812631a5cf5d3ed', 'ffffffff00000001000000000000000000000000ffffffffffffffffffffffff', 'ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551', '6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296']);
@@ -110,19 +110,19 @@ const VENDOR_SRC = /(?:^|[/._-])(?:chunk|vendors?|polyfills?|runtime|framework|c
 function entropy(x) { const c = {}; for (const ch of x) c[ch] = (c[ch] || 0) + 1; let e = 0; for (const k in c) { const p = c[k] / x.length; e -= p * Math.log2(p); } return e; }
 export function hexHashScore(text, raw, pos, src) {
   const v = raw.toLowerCase();
-  if (HEX_SAFE.has(v)) return null; // шаг 3: известная константа
-  if (new Set(v).size < 8 || entropy(v) < 3) return null; // шаг 4: не похоже на случайную строку
-  const key = PWD_KEY.exec(text.slice(Math.max(0, pos - 60), pos)); // шаг 1: только значение поля с именем пароля
+  if (HEX_SAFE.has(v)) return null; // known constant
+  if (new Set(v).size < 8 || entropy(v) < 3) return null; // does not look like a random string
+  const key = PWD_KEY.exec(text.slice(Math.max(0, pos - 60), pos)); // only the value of a field named like a password
   if (!key) return null;
   let score = /^hash$/i.test(key[1]) ? 1 : 3;
   const why = ['Value of the field "' + key[1] + '"'];
-  if (/^(?:localStorage|sessionStorage|cookie)/.test(src)) { score += 2; why.push('found in browser storage, not in library code'); } // шаг 2: источник
+  if (/^(?:localStorage|sessionStorage|cookie)/.test(src)) { score += 2; why.push('found in browser storage, not in library code'); } // source
   else if (VENDOR_SRC.test(src)) { score -= 2; why.push('found in a library or vendor bundle'); }
-  if (CRYPTO_CTX.test(text.slice(Math.max(0, pos - 300), pos + raw.length + 300))) { score -= 3; why.push('cryptography code nearby'); } // шаг 5
-  if (score <= 0) return null; // шаг 6: ниже порога — не показываем
+  if (CRYPTO_CTX.test(text.slice(Math.max(0, pos - 300), pos + raw.length + 300))) { score -= 3; why.push('cryptography code nearby'); }
+  if (score <= 0) return null; // below the threshold: not shown
   return score >= 3 ? { risk: 2, conf: 'medium', why: ['Hex value stored as a password field: may be a password hash'].concat(why) } : { risk: 1, conf: 'low', why: ['Possibly a password hash, low confidence'].concat(why) };
 }
-// Все адреса почты во фрагменте, а не только найденные: иначе адреса сверх лимита видны в чужих фрагментах
+// All email addresses in the snippet, not just the found ones: otherwise addresses over the limit show up in other findings' snippets
 export const maskEmails = (str) => String(str).replace(/\b([a-z0-9._%+-])[a-z0-9._%+-]{0,63}@([a-z0-9-]{1,63}(?:\.[a-z0-9-]{1,63}){0,5}\.[a-z]{2,24})\b/gi, (m, a, d) => (/\.(?:png|jpe?g|svg|js|css|json|tsx?|scss|less|map|html?|xml|md)$/i.test(m) ? m : a + '***@' + d));
 export function maskPii(type, raw) {
   const d = raw.replace(/\D/g, '');
@@ -134,7 +134,7 @@ export function maskPii(type, raw) {
   return '•••' + d.slice(-2) + ' (' + raw.length + ')';
 }
 
-// text: источник целиком; src: имя источника (для хранилища и cookie это имя ключа)
+// text: whole source; src: source name (for storage and cookies, the key name)
 export function piiFindings(text, src) {
   text = String(text || '').slice(0, 2e6);
   const out = [], seen = new Set(), counts = {};
@@ -154,12 +154,12 @@ export function piiFindings(text, src) {
     if (d.length < 13 || d.length > 19 || !cardBrandOk(d) || !luhn(d)) return;
     if (TEST_PAN.has(d)) return push('card', 'Payment card number (Luhn)', r, pos, 'high', 0, 'Test value, not a real number');
     const formatted = /^\d{4}([ -])\d{4}\1\d{4}\1\d{4}$/.test(r) || /^\d{4}([ -])\d{6}\2\d{5}$/.test(r);
-    if (!formatted && !near(pos, 'card') && !KW.card.test(src)) return; // имя ключа хранилища тоже контекст
+    if (!formatted && !near(pos, 'card') && !KW.card.test(src)) return; // the storage key name is context too
     push('card', 'Payment card number (Luhn)', r, pos, formatted ? 'high' : 'medium', storage ? 3 : 2, 'Check whether it is a real card and who can read this file');
   });
   each(RE.iban, (raw, pos) => {
     let x = raw.replace(/\s+/g, '');
-    // Жадная группа могла захватить лишние символы: обрезаем до длины IBAN этой страны
+    // The greedy group may have grabbed extra characters: trim to this country's IBAN length
     const L = IBAN_LEN[x.slice(0, 2)];
     if (!ibanOk(x) && L && x.length > L && ibanOk(x.slice(0, L))) { let k = 0, cut = 0; while (k < L && cut < raw.length) { if (!/\s/.test(raw[cut])) k++; cut++; } raw = raw.slice(0, cut); x = x.slice(0, L); }
     if (!ibanOk(x)) return;
@@ -192,12 +192,12 @@ export function piiFindings(text, src) {
   each(RE.hex, (raw, pos) => { const sc = hexHashScore(text, raw, pos, src); if (sc) push('hash', 'Password hash', raw, pos, sc.conf, sc.risk, sc.why); });
   const mails = new Set();
   EMAIL.lastIndex = 0; let em, ne = 0;
-  // Находок не больше 8, но считаются все адреса: число в сводной находке — настоящее
+  // At most 8 findings, but all addresses are counted: the number in the summary finding is real
   while ((em = EMAIL.exec(text)) && ne++ < CAP) {
     const e = em[0].toLowerCase();
     if (!mails.has(e) && !/\.(?:png|jpe?g|svg|js|css|json|tsx?|scss|less|map|html?|xml|md)$/i.test(e)) { mails.add(e); if (mails.size > 8) { counts.email++; continue; } push('email', 'Email address', em[0], em.index, 'high', 0, 'Email address in code or data: check whether it is a personal or service mailbox'); }
   }
-  // Много разных значений одного типа в одном источнике: список данных в клиентском коде
+  // Many different values of one type in one source: a data list in client code
   for (const [type, n] of Object.entries(counts)) if (n >= 5) {
     const top = Math.max(...out.filter((f) => f.type === type).map((f) => f.risk));
     out.push({ type, label: 'Many distinct values', raw: '', masked: 'x' + n, confidence: 'medium', risk: Math.min(3, top + 1), why: ['Distinct values: ' + n + ' in this source'], file: src, line: 1, col: 1, via: 'pii', snippetRaw: '' });

@@ -1,4 +1,4 @@
-// Ядро: чистые функции без DOM. Тестируется в node (test/*.test.mjs).
+// Core: pure functions without DOM; tested in node (test/*.test.mjs).
 import { blockedReason } from './core/scope.js';
 import { scanIdentity, scanAi } from './core/identity.js';
 import { oauthLiteral } from './core/tokens.js';
@@ -25,8 +25,8 @@ export const VERSION = '1.0.0';
 export const LEVELS = ['info', 'low', 'medium', 'high', 'critical'];
 const CONF = { low: 0, medium: 1, high: 2 };
 const MAX_TEXT = 8e6;
-const MAP_BUDGET = 12e6; // сколько байт исходников из одной source map анализировать
-const TEXT_BUDGET = 25e6; // сколько символов текстов файлов держать для обозревателя
+const MAP_BUDGET = 12e6; // bytes of source-map sources to analyze per map
+const TEXT_BUDGET = 25e6; // chars of file text kept for the file browser
 
 export function fnv(s) { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return ('0000000' + h.toString(16)).slice(-8); }
 export function entropy(s) { const m = {}; let e = 0; for (const c of s) m[c] = (m[c] || 0) + 1; for (const k in m) { const p = m[k] / s.length; e -= p * Math.log2(p); } return e; }
@@ -37,8 +37,8 @@ function b64d(s) {
   const bin = atob(s);
   try { return decodeURIComponent(escape(bin)); } catch (e) { return bin; }
 }
-// Часть значения, попавшая на край фрагмента (не меньше 6 символов), заменяется на «…»
-// Тело закрытого ключа PEM — до строки END или до конца фрагмента
+// A value part cut at the fragment edge (>= 6 chars) is replaced with «…»
+// PEM private key body: up to the END line or the end of the fragment
 const PEM_BODY = /(-----BEGIN[ A-Z0-9_-]{0,100}PRIVATE KEY(?: BLOCK)?-----)(?:(?!-----END)[\s\S])*(?:-----END[ A-Z0-9_-]{0,100}-----)?/g;
 const PEM_TAIL = /^(?:(?!-----BEGIN)[\s\S])*?-----END[ A-Z0-9_-]{0,100}PRIVATE KEY(?: BLOCK)?-----/;
 export function maskEdges(str, raws) {
@@ -62,11 +62,11 @@ export function lineIndex(text) {
 
 const RE_PATH = /(["'])((?:https?:|wss?:)?[/][/][^\s"'`<>\\]+|[/][A-Za-z0-9_.~%?&=#:@+,;{}$\-/\[\]]*)\1/g;
 const RE_TPL = /`((?:(?:https?:|wss?:)?[/][/]|[/]|\$\{[^}]{1,60}\}[/])[^`\n]{0,300})`/g;
-// Дженерик TypeScript (http.get<T>(...)) и httpClient Angular тоже считаются вызовом
+// TypeScript generics (http.get<T>(...)) and Angular httpClient count as calls too
 const RE_CALL = /\b(?:fetch|axios(?:\.(get|post|put|patch|delete|head|options|request))?|(?:\$|jQuery)\.(get|post|getJSON|ajax)|(?:http|https|httpClient|api|client|request|ky|got|instance|service)\.(get|post|put|patch|delete))(?:<[^<>()\n]{0,120}>)?\(\s*(["'`])([^"'`\n]{1,400})\4/g;
 const RE_REQ_FORM = /\b(?:http|https|httpClient|api|client|instance|service)\.request(?:<[^<>()\n]{0,120}>)?\(\s*(["'`])(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\1\s*,\s*(["'`])([^"'`\n]{1,400})\3/g;
 const RE_AXIOS_OBJ = /\baxios\s*\(\s*\{/g;
-// shortcut: имена экземпляров в минифицированных бандлах переименованы и не отслеживаются; помогают source maps
+// shortcut: instance names in minified bundles are renamed and not tracked; source maps help
 const RE_INST = /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:axios|ky|got)(?:\.create|\.extend)\(/g;
 const RE_XHR = /\.open\(\s*["'`](GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)["'`]\s*,\s*(["'`])([^"'`\n]{1,400})\2/gi;
 const RE_URLPROP = /\burl\s*:\s*(["'`])((?:https?:|wss?:)?[/][^"'`\n]{1,400})\1/g;
@@ -75,7 +75,7 @@ const RE_IMPORT = /\bimport\(\s*(["'`])([^"'`\n]+\.m?js[^"'`\n]*)\1\s*\)/g;
 const RE_FROM = /\b(?:from|import)\s*(["'])([^"'\n]+\.m?js[^"'\n]*)\1/g;
 const RE_REL_JS = /(["'`])((?:\.{1,2}\/|\/)[\w@.\/~-]+\.m?js)(?:\?[\w=&.-]*)?\1/g;
 const RE_STATIC_REL = /(["'`])((?:static|assets|_next|_nuxt|build|dist|js|chunks?)\/[\w@.\/~%-]+\.m?js)\1/g;
-// Файл спецификации API, упомянутый в коде: его можно скачать и разобрать
+// API spec file mentioned in code: can be downloaded and parsed
 const RE_OPENAPI = /(["'`])((?:\.{0,2}\/)?[\w@.\/~-]*(?:openapi|swagger|api-docs)[\w.-]*\.(?:json|ya?ml))\1/gi;
 const RE_SRCMAP = /[#@]\s*sourceMappingURL\s*=\s*([^\s'"`*]+)/g;
 const RE_CHUNKMAP = /\{\s*((?:["']?[\w$-]+["']?\s*:\s*["'][0-9a-f]{6,20}["']\s*(?:,\s*)?){3,})\}\s*\[\s*[\w$]+\s*\]\s*\+\s*(["'`])(\.[\w.]*js)\2/g;
@@ -85,13 +85,13 @@ const BASE_VAR = /base|url|host|origin|api|root|endpoint|server|domain|path/i;
 const NOISE_HOST = /^(?:https?:)?\/\/(?:www\.)?(?:w3\.org|schema\.org|json-schema\.org|ogp\.me|xmlsoap\.org|purl\.org|reactjs\.org|fb\.me|mozilla\.org|npmjs\.com|apache\.org\/licenses|github\.com\/(?:facebook|reactjs))/i;
 function isNoise(p, via) {
   if (p.length < 3 || !/[A-Za-z0-9]/.test(p)) return true;
-  if (via !== 'call' && (/^[/][gimsuy]{2,}$/.test(p) || /^[/][gimsuyd]$/.test(p) && p !== '/d')) return true; // флаги регулярки: "/gi"; у вызова fetch("/i") это путь
-  if (/^(?:application|text|image|audio|video|font|multipart|model)\/[\w.+*-]+$/i.test(p)) return true; // MIME-тип
+  if (via !== 'call' && (/^[/][gimsuy]{2,}$/.test(p) || /^[/][gimsuyd]$/.test(p) && p !== '/d')) return true; // regex flags: "/gi"; for a fetch("/i") call it is a path
+  if (/^(?:application|text|image|audio|video|font|multipart|model)\/[\w.+*-]+$/i.test(p)) return true;
   if (/^\d{4}-\d\d-\d\d|^\d\d?:\d\d/.test(p)) return true;
   return NOISE_HOST.test(p);
 }
 export function tplToPath(s) {
-  // Имя параметра — последний идентификатор (a.b.c → c); выражения с операторами, кавычками и короткие имена — {param}
+  // Param name is the last identifier (a.b.c -> c); expressions with operators, quotes, and short names become {param}
   return s.replace(/\$\{([^}]*)\}/g, (_, e) => { if (/[-+*/?:'"`()[\]|&<>=!]/.test(e.trim())) return '{param}'; const ids = e.match(/[A-Za-z_$][\w$]*/g), id = ids && ids[ids.length - 1]; return '{' + (id && id.length >= 2 ? id : 'param') + '}'; });
 }
 function argTail(text, from) {
@@ -144,7 +144,7 @@ export const RULES = [
   { re: /[.]map(?:$|[?#])/i, cat: 'map', sev: 2, owasp: 'API8', why: 'Source map: original sources' },
   { re: /[/]internal(?:[/]|$)|[/][/](?:dev|stage|staging|internal|qa|uat)[.-]/i, cat: 'internal', sev: 2, owasp: 'API9', why: 'Internal or non-prod resource' },
   { re: /[/][{:][a-z_]*id[}]?(?:[/]|$)|[?&]id=/i, cat: 'object', sev: 2, owasp: 'API1', why: 'Object ID: check for BOLA/IDOR' },
-  // v1 намеренно не считается старой: чаще всего это текущая версия
+  // v1 is deliberately not treated as old: it is usually the current version
   { re: /[/](?:v0|beta|old|legacy|deprecated)(?:[/]|$)/i, cat: 'version', sev: 1, owasp: 'API9', why: 'Old or test API version' },
   { re: /[/](?:login|oauth2?|tokens?|reset(?:-password)?|signin|signup|register|password)(?:[/?#.]|$)/i, cat: 'auth', sev: 1, owasp: 'API2', why: 'Authentication' }
 ];
@@ -172,12 +172,12 @@ function kindOf(f, hits) {
   return 'page';
 }
 function rescore(f) {
-  // Путь без query стоит последним: правила вида «(?:[/]|$)» должны видеть конец пути
+  // Path without query goes last: rules like "(?:[/]|$)" must see the end of the path
   const test = (f.resolved || '') + ' ' + f.url + ' ' + f.path;
   const hits = RULES.filter((r) => r.re.test(test));
   f.params.forEach((p) => { const r = paramRisk(p); if (r) hits.push({ cat: 'param', sev: 2, owasp: r.owasp, why: r.why }); });
   f.kind = kindOf(f, hits);
-  // Параметры чужого хоста — не поверхность сайта: риск по именам параметров не поднимается
+  // Params of a foreign host are not site surface: param names do not raise risk
   if (f.kind === 'external') for (let i = hits.length - 1; i >= 0; i--) if (hits[i].cat === 'param') hits.splice(i, 1);
   let R = 0;
   hits.forEach((h) => { R = Math.max(R, h.sev); });
@@ -195,7 +195,7 @@ function rescore(f) {
 const WEAK_PH = /example|xxxx|0{8,}|1{8,}|dummy|placeholder|changeme/i;
 const PH = /example|your[_-]?(?:api|key|token|secret|access)|xxxx|changeme|change[_-]me|dummy|sample|placeholder|redacted|insert[_-]|<[^>]+>|\{\{|\$\{|\*{4,}|\b(?:test|demo|fake|lorem)\b/i;
 const NAME_SKIP = /(?:type|url|uri|label|placeholder|name|field|text|length|regex|pattern|header|endpoint|path|expir\w*|storage|prefix|cookie|param|input|message|error|status)$/i;
-// Паттерны сверены с gitleaks (config/gitleaks.toml), упрощены под JS.
+// Patterns checked against gitleaks (config/gitleaks.toml), simplified for JS.
 export const SECRET_PATTERNS = [
   { id: 'aws-akid', label: 'AWS Access Key ID', re: /\b(?:A3T[A-Z0-9]|AKIA|ASIA|ABIA|ACCA)[A-Z2-7]{16}\b/g, conf: 'high', risk: 4, why: 'AWS key: check the owner and permissions' },
   { id: 'google-api', label: 'Google API key', re: /\bAIza[\w-]{35}(?![\w-])/g, conf: 'medium', risk: 2, why: 'Google keys are often public: check the key restrictions' },
@@ -221,7 +221,7 @@ export const SECRET_PATTERNS = [
   { id: 'auth-header', label: 'Hardcoded Authorization header', re: /["'`](?:Basic|Bearer)\s+[A-Za-z0-9._~+/=-]{20,}["'`]/g, conf: 'medium', risk: 3, why: 'Authorization value written into the code: check whose account it is' },
   { id: 'private-key', label: 'Private key', re: /-----BEGIN[ A-Z0-9_-]{0,100}PRIVATE KEY(?: BLOCK)?-----/g, conf: 'high', risk: 4, why: 'Private key in code', noMask: true },
   { id: 'url-cred', label: 'Login and password in URL', re: /\bhttps?:\/\/[^\s:@\/"'`$]{1,64}:[^\s:@\/"'`$]{3,64}@[a-z0-9.-]+/gi, conf: 'high', risk: 3, why: 'Credentials inside a URL' },
-  // Публичные по замыслу ключи (pub): находка остаётся, но с низким риском
+  // Keys public by design (pub): finding stays but with low risk
   { id: 'stripe-pub', label: 'Stripe publishable key', re: /\bpk_live_[A-Za-z0-9]{10,99}\b/g, conf: 'high', risk: 1, pub: true, why: 'Public by design: check which account it belongs to' },
   { id: 'stripe-test', label: 'Stripe test secret key', re: /\b(?:sk|rk)_test_[A-Za-z0-9]{10,99}\b/g, conf: 'high', risk: 2, why: 'Stripe test-mode secret key: no real money, but test data and settings' },
   { id: 'mapbox-pub', label: 'Mapbox public token', re: /(?:^|[^\w-])(pk\.eyJ[\w-]{8,}\.[\w-]{8,}(?:\.[\w-]*)?)/g, g: 1, conf: 'high', risk: 1, pub: true, why: 'Public by design: check the allowed URLs of the token' },
@@ -234,7 +234,7 @@ export const SECRET_PATTERNS = [
   { id: 'ld-mobile', label: 'LaunchDarkly mobile key', re: /\bmob-[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\b/g, conf: 'medium', risk: 1, pub: true, why: 'Public by design: check which account it belongs to' },
   { id: 'posthog-pub', label: 'PostHog project key', re: /\bphc_[A-Za-z0-9]{32,}/g, conf: 'low', risk: 0, pub: true, why: 'Public by design: check which account it belongs to' },
   { id: 'posthog-personal', label: 'PostHog personal API key', re: /\bphx_[A-Za-z0-9]{32,}/g, conf: 'medium', risk: 4, why: 'Personal API key: reads analytics data of the owner' },
-  // Новые форматы (сверены с документацией поставщиков; Mistral, DeepSeek, Pinecone pckey_ — без источника, не добавлять)
+  // New formats (checked against vendor docs; Mistral, DeepSeek, Pinecone pckey_ have no source, do not add)
   { id: 'huggingface', label: 'Hugging Face token', re: /\bhf_[A-Za-z]{34}(?![A-Za-z0-9])/g, conf: 'medium', risk: 4, why: 'Hugging Face access token: can read or write repos you can access' },
   { id: 'huggingface-org', label: 'Hugging Face organization token', re: /\bapi_org_[A-Za-z0-9]{20,}\b/g, conf: 'low', risk: 3, why: 'Paid API access: check the owner' },
   { id: 'perplexity', label: 'Perplexity API key', re: /\bpplx-[A-Za-z0-9]{48}(?![A-Za-z0-9])/g, conf: 'medium', risk: 4, why: 'Paid API access: check the owner' },
@@ -250,10 +250,10 @@ export const SECRET_PATTERNS = [
   { id: 'slack-xoxe', label: 'Slack token', re: /\bxoxe-\d-[\w-]{20,}/g, conf: 'medium', risk: 4, why: 'Slack refresh token: can mint new tokens' },
   { id: 'sentry-token', label: 'Sentry auth token', re: /\bsntryu_[a-f0-9]{64}\b|\bsntrys_[A-Za-z0-9+/=]+_[A-Za-z0-9+/]{43}/g, conf: 'high', risk: 4, why: 'Sentry auth token: reads projects and events' },
   { id: 'linear', label: 'Linear API key', re: /\blin_api_[A-Za-z0-9]{40}(?![A-Za-z0-9])/g, conf: 'medium', risk: 4, why: 'Reads and writes the owner\'s workspace' },
-  // Форматы 2026: Vercel (форма с _ встречается у сторонних источников, поэтому conf low), Cloudflare (контрольная сумма не опубликована — не проверяется)
+  // 2026 formats: Vercel (the _ form appears in third-party sources, so conf low), Cloudflare (checksum not published, not verified)
   { id: 'vercel', label: 'Vercel token', re: /\bvc[pciark]_[A-Za-z0-9]{20,}\b/g, conf: 'low', risk: 4, why: 'Vercel token: access to projects and deployments, check its type' },
   { id: 'cloudflare-token', label: 'Cloudflare API token', re: /\bcf(?:k|ut|at|ast)_[A-Za-z0-9]{46,48}\b/g, conf: 'medium', risk: 4, why: 'Cloudflare token: check its permissions' },
-  // Префиксы из gitleaks (сверены по его правилам)
+  // Prefixes from gitleaks rules
   { id: 'digitalocean', label: 'DigitalOcean token', re: /\bdo[opr]_v1_[a-f0-9]{64}\b/g, conf: 'high', risk: 4, why: 'Access token: check the owner and scope' },
   { id: 'newrelic', label: 'New Relic API key', re: /\bNRAK-[a-z0-9]{27}\b/gi, conf: 'high', risk: 3, why: 'Access token: check the owner and scope' },
   { id: 'postman', label: 'Postman API key', re: /\bPMAK-[a-f0-9]{24}-[a-f0-9]{34}\b/gi, conf: 'high', risk: 3, why: 'Access token: check the owner and scope' },
@@ -283,30 +283,30 @@ export function jwtInfo(tok) {
     const why = ['alg=' + hd.alg]; let risk = 2;
     if (/^none$/i.test(hd.alg)) { why.push('alg=none: unsigned token'); risk = 3; }
     let dead = false;
-    if (pl.exp && !(Number.isFinite(+pl.exp) && !isNaN(new Date(pl.exp * 1000)))) why.push('exp not a valid time'); // токен не теряется из-за странного exp
+    if (pl.exp && !(Number.isFinite(+pl.exp) && !isNaN(new Date(pl.exp * 1000)))) why.push('exp not a valid time'); // a strange exp must not drop the token
     else if (pl.exp) { const d = new Date(pl.exp * 1000); dead = d < new Date(); why.push('exp ' + d.toISOString().slice(0, 10) + (dead ? ', expired' : ', valid')); if (dead) risk = 1; }
     else why.push('no exp: never expires');
-    // D5: долгий срок жизни, удалённый ключ в заголовке, kid
+    // long lifetime, remote key in header, kid
     if (pl.exp && !dead) { const life = pl.iat ? pl.exp - pl.iat : pl.exp - Date.now() / 1000; if (life > (pl.iat ? 30 : 365) * 86400) { why.push(pl.iat ? 'lifetime ' + Math.round(life / 86400) + ' days' : 'expires more than a year ahead'); risk = Math.max(risk, 2); } }
     if (hd.jku || hd.x5u) why.push('remote key URL in header: ' + String(hd.jku || hd.x5u).slice(0, 120));
     if (hd.kid != null) why.push('kid: ' + String(hd.kid).slice(0, 40));
     if (/^HS/.test(hd.alg)) why.push('symmetric token: a secret in the page may verify it');
     const roles = Object.keys(pl).filter((k) => /^(?:roles?|is_?admin|admin|scope|permissions|groups)$/i.test(k));
     if (roles.length) why.push('roles in token: ' + roles.join(', '));
-    // Supabase: anon-ключ публичен по замыслу, service_role даёт полный доступ к базе в обход RLS
+    // Supabase: anon key is public by design, service_role gives full DB access bypassing RLS
     if (pl.role === 'service_role') { why.unshift('Supabase service_role key: full database access, bypasses row-level security'); if (!dead) risk = 4; }
     else if (pl.role === 'anon' && /supabase/i.test(String(pl.iss || '') + String(pl.ref || ''))) { why.unshift('Supabase anon key: public by design, check row-level security'); risk = Math.min(risk, 1); }
     why.push('claims: ' + Object.keys(pl).slice(0, 12).join(', '));
     return { risk, why };
   } catch (e) { return null; }
 }
-// Ключ AIza: рядом конфиг Firebase — публичный ключ; рядом Gemini — ключ мог получить доступ к платной модели (2026)
+// AIza key: next to a Firebase config it is public; next to Gemini it may have access to a paid model (2026)
 function googleKey(near) {
   if (/generativelanguage\.googleapis|gemini/i.test(near)) return { risk: 3, why: ['Google API key near Gemini API calls: the key may reach Gemini; check its API restrictions'] };
   if (/firebase|authDomain|storageBucket|messagingSenderId/.test(near)) return { label: 'Firebase Web API key', risk: 1, publicKey: true, why: ['Public by design: check the key restrictions and Firebase security rules'] };
   return null;
 }
-// По имени: ключи без префикса узнаются только по имени переменной
+// By name: keys without a prefix are recognized only by variable name
 const NAMED = [
   { id: 'algolia-admin', label: 'Algolia admin key', re: /\badmin[_-]?(?:api)?[_-]?key["']?\s*[:=]\s*["']([0-9a-f]{32})["']/gi, conf: 'medium', risk: 4, why: 'Admin key: changes and deletes the search index' },
   { id: 'algolia-search', label: 'Algolia search key', re: /\bsearch[_-]?(?:api)?[_-]?key["']?\s*[:=]\s*["']([0-9a-f]{32})["']/gi, conf: 'medium', risk: 1, pub: true, why: 'Public by design: check which indexes it can read' },
@@ -327,11 +327,11 @@ export function scanSecrets(text, src, pos) {
   for (const p of SECRET_PATTERNS) {
     p.re.lastIndex = 0; let m;
     while ((m = p.re.exec(text))) {
-      // g: значение в группе захвата, а граница слова съедена префиксом (без lookbehind и без квадратичного перебора)
+      // g: value is in the capture group, and the word boundary is eaten by the prefix (no lookbehind, no quadratic scan)
       const raw = p.g ? m[p.g] : m[0], at = m.index + m[0].length - raw.length;
-      if (WEAK_PH.test(raw) || (p.id !== 'jwt' && !p.noMask && PH.test(raw))) continue; // заглушки вида YOUR_, example, ${…}
+      if (WEAK_PH.test(raw) || (p.id !== 'jwt' && !p.noMask && PH.test(raw))) continue; // placeholders like YOUR_, example, ${…}
       if (p.id === 'private-key' && !/-----END/.test(text.slice(at, at + 8000))) continue;
-      if (p.id === 'mailgun' && !/mailgun|api\.eu\.|messages/i.test(text.slice(Math.max(0, at - 300), at + 300))) continue; // key-<md5> часто просто ключ кеша // одна строка BEGIN в коде — проверка формата, а не ключ
+      if (p.id === 'mailgun' && !/mailgun|api\.eu\.|messages/i.test(text.slice(Math.max(0, at - 300), at + 300))) continue; // key-<md5> is often just a cache key; a lone BEGIN line in code is a format check, not a key
       let extra = null;
       if (p.id === 'jwt') { extra = jwtInfo(raw); if (!extra) continue; extra.why.unshift(p.why); }
       if (p.id === 'google-api') extra = googleKey(text.slice(Math.max(0, at - 400), at + 400));
@@ -340,7 +340,7 @@ export function scanSecrets(text, src, pos) {
   }
   for (const p of NAMED) { p.re.lastIndex = 0; let m; while ((m = p.re.exec(text))) if (!WEAK_PH.test(m[1])) push(p, m[1], m.index + m[0].indexOf(m[1])); }
   RE_GENERIC.lastIndex = 0; let g;
-  // Без ключевого слова в тексте общее правило не найдёт ничего: пропускаем дорогой проход
+  // Without a keyword in the text the generic rule finds nothing: skip the expensive pass
   const gen = /api[_-]?key|apikey|secret|passw|token|auth[_-]?key|private[_-]?key|access[_-]?key/i.test(text);
   while (gen && (g = RE_GENERIC.exec(text))) {
     const name = g[2], val = g[4];
@@ -350,12 +350,12 @@ export function scanSecrets(text, src, pos) {
     if (!isPwd && !/\d/.test(val)) continue;
     if (isPwd ? (ent < 3 || val.length < 8) : (ent < 3.5 || val.length < 16)) continue;
     const hi = ent >= 4.2 && val.length >= 20;
-    if (out.some((o) => o.raw === val)) continue; // значение уже найдено точным правилом: второй раз не показываем
+    if (out.some((o) => o.raw === val)) continue; // value already found by an exact rule: do not show twice
     push({ id: 'generic', label: 'Secret near "' + name + '"', conf: hi ? 'high' : 'medium', risk: hi ? 3 : 2, why: 'Name "' + name + '", entropy ' + ent.toFixed(2) }, val, g.index + g[0].indexOf(val));
   }
   return out;
 }
-// Длины ограничены: без этого шаблоны работают за квадратичное время на длинных строках вида a-a-a-…
+// Lengths are bounded: without this the patterns run in quadratic time on long a-a-a-… strings
 const CLOUD_LIT = { 'AWS S3': ['amazonaws.com'], 'Alibaba OSS': ['aliyuncs.com'], 'Azure App Service': ['azurewebsites.net'], 'Azure Storage': ['core.windows.net'], CloudFront: ['cloudfront.net'], 'Cloudflare R2': ['r2.dev'], 'DigitalOcean Spaces': ['digitaloceanspaces.com'],
   'Firebase Hosting': ['firebaseapp.com', 'web.app'], 'Firebase RTDB': ['firebaseio.com', 'firebasedatabase.app'], 'Google App Engine': ['appspot.com'], 'Google Cloud Storage': ['storage.googleapis.com'], Heroku: ['herokuapp.com'], 'Netlify / Vercel': ['netlify.app', 'vercel.app'] };
 const CLOUD = [
@@ -379,7 +379,7 @@ function scanClouds(text, src, pos) {
   const out = [], seen = new Set();
   const low = text.toLowerCase();
   for (const [label, re, pathStyle] of CLOUD) {
-    // Быстрый отсев: каждое правило требует свой домен в тексте, иначе 15 полных проходов по каждому файлу
+    // Quick filter: each rule needs its domain in the text, else 15 full passes per file
     if (!CLOUD_LIT[label].some((x) => low.includes(x))) continue;
     re.lastIndex = 0; let m;
     while ((m = re.exec(text))) {
@@ -392,7 +392,7 @@ function scanClouds(text, src, pos) {
   return out;
 }
 
-// Стек по тексту. Версия только там, где она однозначна; иначе null.
+// Stack from text. Version only where unambiguous; otherwise null.
 const VER = '(\\d+\\.\\d+(?:\\.\\d+)?)';
 const TEXT_TECH = [
   ['Next.js', /__NEXT_DATA__|_next\/static/],
@@ -421,7 +421,7 @@ export function techFromText(text) {
   return out;
 }
 export { techFromRuntime } from './core/tech.js';
-// Конец поддержки: только при известной версии. Даты по официальным анонсам.
+// End of support: only for a known version. Dates from official announcements.
 export function eolNote(name, version) {
   if (!version) return null;
   const major = parseInt(version, 10);
@@ -433,18 +433,18 @@ export function eolNote(name, version) {
   return null;
 }
 
-// Заголовки ответа документа. h: объект с ключами в нижнем регистре.
-// Заголовки, вставленные из DevTools или Burp: «Имя: значение» по строкам, строка статуса и мусор пропускаются
+// Response headers of the document. h: object with lower-case keys.
+// Headers pasted from DevTools or Burp: "Name: value" per line; status line and junk are skipped
 export function parseHeaders(text) {
-  const out = Object.create(null); // заголовок Constructor: не должен попадать на Object.prototype
+  const out = Object.create(null); // header named Constructor must not hit Object.prototype
   let last = null;
   for (const line of String(text || '').split(/\r?\n/)) {
-    // Строка-продолжение (начинается с пробела) дописывается к прошлому заголовку; «https://…» — не заголовок
+    // Continuation line (starts with whitespace) is appended to the previous header; "https://…" is not a header
     if (/^\s+\S/.test(line) && last) { out[last] += ' ' + line.trim(); continue; }
     const m = /^\s*([A-Za-z0-9!#$%&'*+.^_`|~-]+)\s*:(?!\/\/)\s*(.*?)\s*$/.exec(line);
-    if (!m || !m[2] || /^https?$/i.test(m[1])) continue; // имя без значения (формат «имя на одной строке, значение на другой») не принимаем
+    if (!m || !m[2] || /^https?$/i.test(m[1])) continue; // name without value (name on one line, value on the next) is not accepted
     const k = m[1].toLowerCase();
-    // Повторы Set-Cookie и CSP хранятся построчно: несколько политик CSP действуют все сразу, склеивать их через запятую нельзя
+    // Set-Cookie and CSP repeats are stored per line: several CSP policies all apply, so they must not be comma-joined
     last = k;
     out[k] = out[k] && !/^(?:set-cookie|content-security-policy)$/.test(k) ? out[k] + ', ' + m[2] : out[k] ? out[k] + '\n' + m[2] : m[2];
   }
@@ -455,14 +455,14 @@ export function headerFindings(h, isHttps, url) {
   const csp = h['content-security-policy'];
   if (!csp) add(1, 'No Content-Security-Policy', 'XSS is not limited by a policy');
   else {
-    // Проверки качества CSP по правилам Mozilla Observatory. Политик может быть несколько: действуют все, поэтому слабость засчитывается, только если она есть в каждой
+    // CSP quality checks per Mozilla Observatory rules. There may be several policies and all apply, so a weakness counts only if present in each
     const pols = csp.split('\n').filter((x) => x.trim());
     const dirOf = (pol, name) => { const m = new RegExp('(?:^|;)\\s*' + name + '\\s+([^;]*)', 'i').exec(pol); return m ? m[1] : null; };
     const all = (fn) => pols.every(fn), scr = (pol) => dirOf(pol, 'script-src') || dirOf(pol, 'default-src');
-    const trusted = (v) => /'nonce-|'sha(?:256|384|512)-/.test(v); // с nonce или хешем браузер игнорирует unsafe-inline, со strict-dynamic — ещё и списки хостов
+    const trusted = (v) => /'nonce-|'sha(?:256|384|512)-/.test(v); // with nonce or hash the browser ignores unsafe-inline; with strict-dynamic also host lists
     const first = scr(pols[0]) || '';
     if (all((p) => scr(p) == null)) add(1, 'CSP does not restrict scripts', 'No script-src or default-src: any script can run');
-    if (all((p) => { const v = scr(p) || ''; return /'unsafe-eval'/.test(v) || (/'unsafe-inline'/.test(v) && !trusted(v)); })) add(1, 'CSP allows unsafe-inline or unsafe-eval', 'script-src: ' + first.trim().slice(0, 140)); // только для скриптов: в style-src это обычное дело
+    if (all((p) => { const v = scr(p) || ''; return /'unsafe-eval'/.test(v) || (/'unsafe-inline'/.test(v) && !trusted(v)); })) add(1, 'CSP allows unsafe-inline or unsafe-eval', 'script-src: ' + first.trim().slice(0, 140)); // scripts only: in style-src it is common
     if (all((p) => { const v = scr(p) || ''; return /(?:^|\s)(?:\*|https?:)(?:\s|$)/.test(v) && !(/'strict-dynamic'/.test(v) && trusted(v)); })) add(1, 'CSP allows scripts from any host', 'script-src: ' + first.trim().slice(0, 120));
     if (all((p) => dirOf(p, 'object-src') == null && dirOf(p, 'default-src') == null)) add(0, 'CSP has no object-src', 'Plugins are not restricted');
     if (all((p) => dirOf(p, 'base-uri') == null)) add(0, 'CSP has no base-uri', 'A <base> tag can redirect relative script URLs');
@@ -472,8 +472,8 @@ export function headerFindings(h, isHttps, url) {
   if (hsts && +hsts[1] < 15552000) add(1, 'HSTS max-age is under 6 months', 'max-age=' + hsts[1]);
   const nosniff = h['x-content-type-options'];
   if (!nosniff || nosniff.trim().toLowerCase() !== 'nosniff') add(0, 'No X-Content-Type-Options: nosniff', 'The browser may guess content types');
-  // origin и origin-when-cross-origin отдают другим сайтам только origin — это не утечка адреса
-  // Браузер берёт последнее допустимое значение из списка через запятую
+  // origin and origin-when-cross-origin give other sites only the origin: not a URL leak
+  // Browser takes the last valid value from the comma-separated list
   if (/^(?:unsafe-url|no-referrer-when-downgrade)$/i.test((h['referrer-policy'] || '').split(',').map((x) => x.trim()).filter(Boolean).pop() || '')) add(1, 'Referrer-Policy sends the full address to other sites', 'referrer-policy: ' + h['referrer-policy']);
   if (isHttps && !h['strict-transport-security']) add(1, 'No Strict-Transport-Security', 'Can fall back to http');
   if (!h['x-frame-options'] && !/frame-ancestors/.test(csp || '')) add(1, 'No framing protection', 'No X-Frame-Options or frame-ancestors: clickjacking');
@@ -494,10 +494,10 @@ export function analyze(text, src) {
   const ref = (raw, via) => { const a = resolveAbs(raw, src); if (a) refs.push({ abs: a, via }); };
   RE_CALL.lastIndex = 0;
   while ((m = RE_CALL.exec(text))) {
-    if (/^fetch/.test(m[0]) && /[\w$.]/.test(text[m.index - 1] || '')) continue; // this.fetch() и x.fetch() — свои методы, а не fetch браузера
+    if (/^fetch/.test(m[0]) && /[\w$.]/.test(text[m.index - 1] || '')) continue; // this.fetch() and x.fetch() are own methods, not browser fetch
     const end = m.index + m[0].length;
     let url = m[5];
-    url = expandConcat(text, end, url); // и для шаблонной строки: `/api/${a}` + '/x'
+    url = expandConcat(text, end, url); // also for a template string: `/api/${a}` + '/x'
     const win = argTail(text, end);
     let method = null;
     const mm = /\bmethod\s*:\s*(["'`])(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\1/i.exec(win);
@@ -505,10 +505,10 @@ export function analyze(text, src) {
     else if (m[1] && m[1] !== 'request') method = m[1].toUpperCase();
     else if (m[3]) method = m[3].toUpperCase();
     else if (m[2]) method = { get: 'GET', post: 'POST', getjson: 'GET' }[m[2].toLowerCase()] || null;
-    // fetch по умолчанию GET, но только если метод не задан переменной или через spread
+    // fetch defaults to GET, but only if the method is not set by a variable or spread
     else if (/^fetch/.test(m[0])) method = /\bmethod\s*:|\.\.\./.test(win) ? null : 'GET';
     const params = [], auth = [];
-    // У fetch второй аргумент — опции, а не тело: тело только из body: или JSON.stringify(
+    // fetch's second argument is options, not the body: body only from body: or JSON.stringify(
     const body = (/^fetch/.test(m[0]) ? /(?:JSON\.stringify\(\s*|\bbody\s*:\s*)\{([^{}]{0,300})\}/ : /(?:JSON\.stringify\(\s*|\bbody\s*:\s*|\bdata\s*:\s*|^\s*,\s*)\{([^{}]{0,300})\}/).exec(win);
     if (body) { const kr = /(?:^|,)\s*["']?([A-Za-z_$][\w$-]*)["']?\s*(?::|(?=,|$))/g; let kb; while ((kb = kr.exec(body[1]))) params.push(kb[1]); }
     if (/authorization|bearer\s|x-api-key/i.test(win)) auth.push('authorization');
@@ -520,7 +520,7 @@ export function analyze(text, src) {
   while ((m = RE_REQ_FORM.exec(text))) hit(m[4], m.index, m[0].length, { via: 'call', method: m[2].toUpperCase(), confidence: 'high' });
   RE_AXIOS_OBJ.lastIndex = 0;
   while ((m = RE_AXIOS_OBJ.exec(text))) {
-    // Тело объекта до парной скобки: вложенные headers: {…} не обрывают поиск url и method
+    // Object body up to the matching brace: nested headers: {…} do not break the url and method search
     let d = 1, i = m.index + m[0].length; const lim = Math.min(text.length, i + 1500);
     for (; i < lim && d; i++) { const c = text[i]; if (c === '{') d++; else if (c === '}') d--; }
     const body = text.slice(m.index + m[0].length, i).replace(/\{[^{}]*\}/g, '{}');
@@ -534,8 +534,8 @@ export function analyze(text, src) {
     const re = new RegExp('\\b(?:' + inst.join('|') + ')\\.(get|post|put|patch|delete)(?:<[^<>()\\n]{0,120}>)?\\(\\s*(["\'`])([^"\'`\\n]{1,400})\\2', 'g');
     while ((m = re.exec(text))) hit(m[3], m.index, m[0].length, { via: 'call', method: m[1].toUpperCase(), confidence: 'high' });
   }
-  // База адреса из поля класса или переменной (host = '/api/Items'): подставляется в ${this.host}/… и this.host + '…'
-  // shortcut: только в пределах файла и только последнее определение до места вызова; между файлами базы не видны (нужен разбор AST)
+  // Base URL from a class field or variable (host = '/api/Items'): substituted into ${this.host}/… and this.host + '…'
+  // shortcut: file scope only and only the last definition before the call; bases are not visible across files (needs AST parsing)
   const defs = [];
   for (const d of text.matchAll(/\b(?:this\.)?([A-Za-z_$][\w$]{0,40})\s*=\s*(?:this\.[\w$]+\s*\+\s*)?(["'`])(\/[^"'`\n$]{1,200})\2/g)) if (defs.length < 500) defs.push([d[1], d[3], d.index]);
   const defOf = (name, at) => { let v = null; for (const [n, val, i] of defs) if (n === name && i < at) v = val; return v; };
@@ -555,7 +555,7 @@ export function analyze(text, src) {
   }
   RE_TPL.lastIndex = 0;
   while ((m = RE_TPL.exec(text))) hit(expandConcat(text, m.index + m[0].length, m[1]), m.index, m[0].length, { via: 'template', confidence: 'medium' });
-  // webpack/terser выносят баннеры лицензий в соседний файл: в нём имена и версии пакетов (F6)
+  // webpack/terser move license banners to a neighbor file: it has package names and versions
   const lic = /For license information please see ([\w.\/-]{1,200}\.LICENSE\.txt)/.exec(text);
   if (lic) ref(lic[1].includes('/') ? lic[1] : './' + lic[1], 'license');
   for (const [re, via] of [[RE_IMPORT, 'import'], [RE_FROM, 'import'], [RE_REL_JS, 'rel-js'], [RE_OPENAPI, 'openapi']]) { re.lastIndex = 0; while ((m = re.exec(text))) ref(m[2], via); }
@@ -575,7 +575,7 @@ export function analyze(text, src) {
   RE_SRCMAP.lastIndex = 0;
   while ((m = RE_SRCMAP.exec(text))) {
     const v = m[1];
-    if (/^data:application\/json[^,]*,/i.test(v)) { try { const body = v.replace(/^[^,]*,/, ''); inlineMaps.push(/;base64,/i.test(v) ? b64d(body) : decodeURIComponent(body)); } catch (e) { /* битая inline-map */ } }
+    if (/^data:application\/json[^,]*,/i.test(v)) { try { const body = v.replace(/^[^,]*,/, ''); inlineMaps.push(/;base64,/i.test(v) ? b64d(body) : decodeURIComponent(body)); } catch (e) { /* broken inline map */ } }
     else { const mu = resolveAbs(v, src); if (mu) { maps.push(mu); refs.push({ abs: mu, via: 'sourcemap' }); hit(mu, m.index, m[0].length, { via: 'sourcemap', method: 'GET', confidence: 'high' }); } }
   }
   for (const h of hits) { const t = /^\$\{(?:this\.)?([A-Za-z_$][\w$]{0,40})\}/.exec(h.raw); const base = t && defOf(t[1], h.at == null ? Infinity : h.at); if (base) h.raw = base.replace(/\/$/, '') + h.raw.slice(t[0].length); }
@@ -583,11 +583,11 @@ export function analyze(text, src) {
   for (const r of rt) if (r.t === 'hit') hit(r.raw, r.at, 0, { via: 'ws', confidence: 'high' }); else if (r.t === 'simple') rtSimple.push(Object.assign({ kind: 'realtime' }, r));
   const secrets = scanSecrets(text, src, pos), clouds = scanClouds(text, src, pos), pii = piiFindings(text, src);
   for (const r of rt) if (r.t === 'secret') { const p = pos(r.at); secrets.push({ type: r.type, label: r.label, raw: r.raw, confidence: r.conf, risk: r.risk, why: [r.why], noMask: false, publicKey: false, file: src, line: p.line, col: p.col, snippetRaw: snippetAt(text, r.at, r.raw.length) }); }
-  // Значения токенов в параметрах адреса (?token=, access_token=, credential:) тоже маскируются во всех фрагментах
+  // Token values in URL params (?token=, access_token=, credential:) are masked in all fragments too
   const qtok = Array.from(text.matchAll(/(?:[?&][\w-]{0,30}(?:token|ticket|sig|signature|code|key|auth|secret|pass)[\w-]{0,30}=|credential\s*:\s*["'`])([^&"'`\s#]{6,300})/gi), (m) => m[1]).slice(0, 200);
-  secrets.sort((x, y) => y.raw.length - x.raw.length); // длинное значение маскируется первым: иначе его хвост остаётся открытым после замены короткого
+  secrets.sort((x, y) => y.raw.length - x.raw.length); // longest value is masked first: otherwise its tail stays open after the short one is replaced
   const maskAll = (str) => { secrets.forEach((s) => { if (!s.noMask) str = str.split(s.raw).join(mask(s.raw)); }); pii.forEach((p) => { if (p.raw) str = str.split(p.raw).join(p.masked); }); qtok.forEach((v) => { str = str.split(v).join(mask(v)); }); return maskEdges(pii.length ? maskEmails(str) : str, edgeRaws).replace(PEM_BODY, '$1 [body hidden]').replace(PEM_TAIL, '[key body hidden] '); };
-  // Окно фрагмента может разрезать значение: хвост или начало длинного секрета на краю окна тоже прячется
+  // A fragment window can cut a value: the tail or start of a long secret at the window edge is hidden too
   const edgeRaws = secrets.filter((s) => !s.noMask).map((s) => s.raw).concat(pii.map((p) => p.raw), qtok).filter((v) => v && v.length >= 12);
   pii.forEach((p) => { p.snippet = maskAll(p.snippetRaw || ''); });
   if (secrets.length || pii.length || qtok.length) {
@@ -595,8 +595,8 @@ export function analyze(text, src) {
     clouds.forEach((c) => { c.snippet = maskAll(c.snippet); });
     secrets.forEach((s) => { s.snippet = s.noMask ? s.snippetRaw.replace(/-----BEGIN[^\n]*?-----[\s\S]*/, s.raw + ' [body hidden]') : maskAll(s.snippetRaw); });
   }
-  // Простые находки модулей ядра: { kind, title, risk, why, at } → строка и фрагмент по позиции
-  let host = ''; try { host = new URL(src).hostname; } catch (e) { /* не URL */ }
+  // Simple findings from core modules: { kind, title, risk, why, at } -> line and fragment by position
+  let host = ''; try { host = new URL(src).hostname; } catch (e) { /* not a URL */ }
   const fw = frameworkHints(text);
   for (const f of fw) if (f.hit) hit(f.hit, f.at, 0, { via: f.via, method: f.method, confidence: f.confidence });
   const simple = scanIdentity(text).concat(scanAi(text, hits, secrets, scanSecrets), rtSimple, fw.filter((f) => !f.hit), mobileHints(text).map((x) => Object.assign({ kind: 'mobile' }, x)), infraFromText(text, host).map((x) => Object.assign({ kind: 'infra' }, x)), browserFindings(text, host).map((x) => Object.assign({ kind: 'browser' }, x)), web3Findings(text, src).map((x) => Object.assign({ kind: 'web3' }, x))).map((f) => { const p = pos(f.at); return { kind: f.kind, title: f.title, risk: f.risk, why: f.why, file: src, line: p.line, snippet: secrets.length ? f.title : snippetAt(text, f.at, 40) }; });
@@ -612,7 +612,7 @@ export class Store {
     this.pageUrl = pageUrl || '';
     this.pageHost = hostOf(this.pageUrl);
     try { const u = new URL(this.pageUrl); this.pageOrigin = u.origin; this.pageProto = u.protocol; } catch (e) { this.pageOrigin = ''; this.pageProto = 'https:'; }
-    this.listeners = []; this.rev = 0; // rev растёт при любом изменении находок: по нему экраны понимают, что пора пересобрать
+    this.listeners = []; this.rev = 0; // rev grows on any findings change: screens use it to know when to rebuild
     this.reset();
   }
   reset() {
@@ -621,23 +621,23 @@ export class Store {
     this.status = ''; this.progress = { done: 0, total: 0 };
     this.notify();
   }
-  // Тексты файлов для обозревателя. В историю, сессию и экспорт не попадают
+  // File texts for the file browser. Not included in history, session, or export
   addText(url, text, contentType) {
     if (typeof text !== 'string' || this.texts.has(url)) return;
-    if (this.textBytes + text.length > TEXT_BUDGET) { this.textsSkipped++; return; } // «Файлы» сообщают, сколько не поместилось
+    if (this.textBytes + text.length > TEXT_BUDGET) { this.textsSkipped++; return; } // "Files" reports how many did not fit
     this.textBytes += text.length; this.texts.set(url, { text, contentType: contentType || '' });
     if (/\.m?js(?:$|[?#])/i.test(url) || /javascript/.test(contentType || '')) { const o = obfuscationScore(text); if (o.level) { this.obf.set(url, o); this.addSimple('obfuscation', { title: (o.level === 'obfuscated' ? 'Obfuscated code: ' : 'Possibly obfuscated code: ') + o.signals.map((x) => OBF_LABEL[x.id]).join(', '), risk: 0, why: ['Obfuscation hides what the code does; it is context, not a vulnerability. Use Decode strings and Unpack in Files to read it'], file: url, line: 1 }); } }
   }
   on(fn) { this.listeners.push(fn); }
-  notify() { for (const fn of this.listeners) try { fn(this); } catch (e) { /* слушатель UI не должен ронять скан */ } }
+  notify() { for (const fn of this.listeners) try { fn(this); } catch (e) { /* a UI listener must not crash the scan */ } }
   _src(f, h) {
-    // Ключ с колонкой: в минифицированной строке несколько мест подряд; сверх 20 мест ставится флаг, чтобы список не считали полным
+    // Key with column: a minified line has several places in a row; above 20 places a flag is set so the list is not taken as complete
     const key = h.file + ':' + h.line + ':' + h.col;
     if (f.sources.some((s) => s.file + ':' + s.line + ':' + s.col === key)) return;
     if (f.sources.length >= 20) { f.sourcesTruncated = true; return; }
     f.sources.push({ file: h.file, line: h.line, col: h.col, via: h.via });
   }
-  // Повтор находки: добавить место, риск — наибольший из встреченных
+  // Repeated finding: add the place, risk is the highest seen
   _merge(key, c, h) {
     const ex = this.byKey.get(key);
     if (!ex) return false;
@@ -662,10 +662,10 @@ export class Store {
     let origin = null, host = '';
     if (sp.origin) { origin = sp.origin.startsWith('//') ? this.pageProto + sp.origin : sp.origin; host = hostOf(origin); if (/[{}]/.test(host)) return null; }
     else if (this.pageOrigin && sp.path[0] === '/') { origin = this.pageOrigin; host = this.pageHost; }
-    // Ключ — путь без query: варианты с разными параметрами и метод «?» сливаются в одну находку
+    // Key is the path without query: variants with different params and method "?" merge into one finding
     const uk = (origin || '') + sp.path, list = this.byKey.get(uk) || [];
     const method = h.method && h.method !== '?' ? h.method : '?';
-    // «?» при нескольких методах на одном пути: в запись «?», а если её нет — в каждую, а не в первую попавшуюся
+    // "?" with several methods on one path: goes to the "?" entry, or if absent to each, not the first one found
     if (method === '?' && list.length > 1 && !list.some((x) => x.method === '?')) { let r = null; for (const x of list.slice()) r = this.addHit(Object.assign({}, h, { method: x.method })); return r; }
     let f = method === '?' ? (list.length === 1 ? list[0] : list.find((x) => x.method === '?')) : (list.find((x) => x.method === method) || list.find((x) => x.method === '?'));
     if (f && method !== '?') f.method = method;
@@ -684,15 +684,15 @@ export class Store {
     if (!f.snippet && h.snippet) f.snippet = h.snippet;
     this._src(f, h);
     rescore(f);
-    // id зависит только от адреса и итогового метода: в любом порядке файлов он одинаков между запусками
+    // id depends only on the URL and final method: same across runs in any file order
     f.id = fnv('hit|' + uk + '|' + f.method);
     this.rev++;
     return f;
   }
-  // Персональные данные: ключ и id — от маски, исходное значение только в памяти для кнопки «показать»
+  // Personal data: key and id come from the mask, the original value stays in memory only for the "show" button
   addPii(p) {
-    // Шаг 7: один хеш в разных файлах — одна находка со всеми местами; в 5+ файлах это скорее константа библиотеки
-    // Ключ от хеша исходного значения: разные карты с одинаковой маской не сливаются (в файл id не уходит — там stableIds)
+    // One hash in different files is one finding with all places; in 5+ files it is more likely a library constant
+    // Key from the hash of the original value: different maps with the same mask do not merge (id is not written to file: stableIds there)
     const key = 'pii|' + p.type + '|' + (p.type === 'hash' ? '' : p.file + '|') + p.masked + '|' + fnv(p.raw || p.masked), ex = this.byKey.get(key);
     if (ex) {
       const f = ex[0]; this._src(f, p);
@@ -708,7 +708,7 @@ export class Store {
     return this._put(key, {
       kind: 'secret', url: s.label, resolved: null, method: '-', params: [], auth: [], host: '', confidence: s.confidence, risk: s.risk, level: LEVELS[Math.min(s.risk, 4)],
       owasp: ['API8'], why: s.why, priority: !s.publicKey && s.risk >= 3 && CONF[s.confidence] >= 1, publicKey: !!s.publicKey, secret: masked, raw: s.raw,
-      // У закрытого ключа совпадение — только строка BEGIN: тело ключа из фрагмента убирается, целиком оно только в snippetRaw
+      // For a private key the match is only the BEGIN line: the key body is removed from the fragment, whole only in snippetRaw
       snippet: s.snippet != null ? s.snippet : s.noMask ? (s.snippetRaw || '').replace(/-----BEGIN[^\n]*?-----[\s\S]*/, s.raw + ' [body hidden]') : (s.snippetRaw || '').split(s.raw).join(masked), snippetRaw: s.snippetRaw || ''
     }, s);
   }
@@ -721,14 +721,14 @@ export class Store {
     }, c);
   }
   addTech(t, file) {
-    const key = 'tech|' + t.name.toLowerCase(), ex = this.byKey.get(key); // React и react из баннера — одна запись
+    const key = 'tech|' + t.name.toLowerCase(), ex = this.byKey.get(key); // React and react from a banner are one entry
     if (t.version) this._bad(t.name.toLowerCase(), t.version, file);
     if (ex) { const f = ex[0]; if (t.version && !f.version) { f.version = t.version; this._techWhy(f); this.rev++; } return f; }
     const f = this._put(key, { kind: 'tech', name: t.name, version: t.version || null, method: '-', params: [], auth: [], host: '', confidence: t.version ? 'high' : 'medium', owasp: [], priority: false, snippet: '' }, { file, line: 1, col: 1, via: 'tech' });
     this._techWhy(f);
     return f;
   }
-  // Известная вредоносная версия или пакет-маркер атаки: отдельная находка, чтобы не потерялась среди советов по версиям
+  // Known malicious version or attack marker package: separate finding so it is not lost among version advice
   _bad(name, version, file) {
     const b = badMatch(name, version);
     if (b) this.addSimple('custom', Object.assign({ file: file || '(source map)', line: 1 }, b));
@@ -742,7 +742,7 @@ export class Store {
     f.why = f.advisories.map((a) => a.id + ': ' + a.summary + (a.fixed ? ', fixed in ' + a.fixed : '')).concat(eol ? [eol] : []);
     f.resolved = osvLink(f.name);
   }
-  // Результат OSV-проверки дописывается к технологии; дубли по id убираются
+  // OSV check result is appended to the tech; duplicates by id are removed
   addOsv(name, vulns) {
     this.rev++;
     const ex = this.byKey.get('tech|' + String(name).toLowerCase()); if (!ex) return;
@@ -751,12 +751,12 @@ export class Store {
     this._techWhy(f); this.notify();
   }
   addCode(c) {
-    // Без имени файла: одна находка в нескольких бандлах — одна запись со всеми местами, а хеш бандла в имени не делает её «новой» после деплоя
+    // No file name: one finding in several bundles is one entry with all places, and the bundle hash in the name does not make it "new" after deploy
     const key = 'code|' + c.type + '|' + c.title;
     if (this._merge(key, c, c)) return null;
     return this._put(key, { kind: 'code', type: c.type, url: c.title, resolved: null, method: '-', params: [], auth: [], host: '', confidence: 'medium', risk: c.risk, level: LEVELS[c.risk], owasp: [], why: c.why ? [c.why] : [CODE_WHY[c.type]], priority: (c.risk || 0) >= 3, snippet: c.snippet }, c);
   }
-  // Простые находки (cookies, storage, свои правила): заголовок, уровень, причины
+  // Simple findings (cookies, storage, custom rules): title, level, reasons
   addSimple(kind, c) {
     const risk = Math.min(4, c.risk || 0);
     const key = kind + '|' + c.title;
@@ -768,7 +768,7 @@ export class Store {
     if (this.byKey.get(key)) return null;
     return this._put(key, { kind: 'config', url: c.title, resolved: null, method: '-', params: [], auth: [], host: this.pageHost, confidence: 'high', risk: c.risk, level: LEVELS[c.risk], owasp: ['API8'], why: [c.why], priority: false, snippet: '' }, { file, line: 1, col: 1, via: 'header' });
   }
-  // Заголовки документа заменяются целиком (например, вставленные вручную): старые находки по заголовкам удаляются
+  // Document headers are replaced as a whole (e.g. pasted by hand): old header findings are removed
   replaceHeaders(headers, isHttps, file) {
     this.items = this.items.filter((f) => f.kind !== 'config');
     for (const k of Array.from(this.byKey.keys())) if (k.startsWith('config|')) this.byKey.delete(k);
@@ -781,13 +781,13 @@ export class Store {
     if (d) d.count++; else this.deps.set(name, d = { name, scoped: name[0] === '@', count: 1, version: version || null, checked: new Set() });
     if (version && !d.version) d.version = version;
     const v = version || '';
-    if (!d.checked.has(v)) { d.checked.add(v); if (!this._bad(name, version, file) && version && !TECH_LOW.has(name.toLowerCase())) this.addTech({ name, version }, file); } // версия без находки тоже попадает в «Стек», кроме библиотек, которые уже находит techFromText
+    if (!d.checked.has(v)) { d.checked.add(v); if (!this._bad(name, version, file) && version && !TECH_LOW.has(name.toLowerCase())) this.addTech({ name, version }, file); } // version without a finding also goes to "Stack", except libraries techFromText already finds
   }
   list() {
     return this.items.slice().sort((a, b) => (b.priority - a.priority) || (b.risk - a.risk) || (CONF[b.confidence] - CONF[a.confidence]) || (a.url < b.url ? -1 : 1));
   }
   counts() {
-    // total и уровни считают одно и то же: без static и external, чтобы плитки сходились с итогом
+    // total and levels count the same thing: without static and external, so tiles match the total
     const c = { total: 0, priority: 0, kinds: {}, levels: {} };
     for (const f of this.items) { c.kinds[f.kind] = (c.kinds[f.kind] || 0) + 1; if (f.kind === 'external' || f.kind === 'static') continue; c.total++; if (f.priority) c.priority++; c.levels[f.level] = (c.levels[f.level] || 0) + 1; }
     return c;
@@ -804,28 +804,28 @@ export class Store {
 }
 
 export function parseSourceMap(text) { return parseSourceMaps(text)[0] || null; }
-// Обычная карта или индексная (sections[].map); префикс )]}' от XSSI отбрасывается
+// Plain map or index map (sections[].map); the )]}' XSSI prefix is dropped
 export function parseSourceMaps(text) {
   let j; try { j = JSON.parse(String(text).replace(/^\)\]\}'[^\n]*\n/, '')); } catch (e) { return []; }
   if (j && Array.isArray(j.sections)) return j.sections.map((x) => x && x.map).filter((m) => m && Array.isArray(m.sources)).slice(0, 200);
   return j && Array.isArray(j.sources) ? [j] : [];
 }
-// Пространство имён срезается только перед «./» (webpack://app/./src/x.js): иначе съедается первая папка исходника
+// Namespace is stripped only before "./" (webpack://app/./src/x.js): otherwise the first source folder is eaten
 const cleanSource = (s) => s.replace(/^(?:webpack|turbopack|vite|rollup):\/\/\/?(?:\[project\]\/|_N_E\/)?(?:[^\/]+\/(?=\.\/))?(?:\.\/)?/, '');
 function pkgOf(s) { let m, last = null; const re = /node_modules\/((?:@[^\/]+\/)?[^\/]+)/g; while ((m = re.exec(s))) last = m[1]; return last; }
 function handleMap(store, j, mapUrl) {
   const contents = j.sourcesContent || [];
   let budget = 0, noContent = 0;
   j.sources.forEach((s, i) => {
-    if (typeof s !== 'string') return; // спецификация допускает null в sources
+    if (typeof s !== 'string') return; // the spec allows null in sources
     const pn = pnpmPackage(s), pkg = pn ? pn.name : pkgOf(s);
-    if (pkg) store.addDep(pkg, pn && pn.version, mapUrl); // исходник пакета тоже разбирается: в нём бывают ключи, а объём ограничен MAP_BUDGET
+    if (pkg) store.addDep(pkg, pn && pn.version, mapUrl); // package source is parsed too: it can hold keys, and volume is capped by MAP_BUDGET
     const name = cleanSource(s);
-    if (/(?:^|\/)(?:admin|backoffice|superuser|internal-tools)(?:\/|$)/i.test(name)) store.addCode({ type: 'admin-src', title: 'Admin component in shipped source: ' + name.replace(/\/[^/]*$/, '/'), risk: 1, file: mapUrl.split('#')[0] + '#' + name, line: 1, col: 1, snippet: name }); // место — исходник в карте, а не сама карта
+    if (/(?:^|\/)(?:admin|backoffice|superuser|internal-tools)(?:\/|$)/i.test(name)) store.addCode({ type: 'admin-src', title: 'Admin component in shipped source: ' + name.replace(/\/[^/]*$/, '/'), risk: 1, file: mapUrl.split('#')[0] + '#' + name, line: 1, col: 1, snippet: name }); // the place is the source inside the map, not the map itself
     const c = contents[i];
-    // Два разных исходника с одинаковым коротким именем не должны затирать друг друга: тогда ключ — исходная строка
+    // Two different sources with the same short name must not overwrite each other: then the key is the source string
     let key = mapUrl.split('#')[0] + '#' + name; if (store.texts.has(key)) key = mapUrl.split('#')[0] + '#' + s;
-    if (typeof c === 'string' && !pkg) store.addText(key, c); // исходники пакетов не храним: память; но разбираем ниже
+    if (typeof c === 'string' && !pkg) store.addText(key, c); // package sources are not stored (memory) but parsed below
     if (typeof c === 'string' && budget + c.length <= MAP_BUDGET) { budget += c.length; analyzeInto(store, c, key, { inMap: true }); }
     else if (typeof c === 'string') store.mapSkipped = (store.mapSkipped || 0) + 1;
     else noContent++;
@@ -837,7 +837,7 @@ function handleManifest(store, text, src) {
   if (!j || typeof j !== 'object' || (!j.start_url && !j.name && !j.short_name && !j.shortcuts)) return false;
   [j.start_url, j.scope, j.serviceworker && j.serviceworker.src, j.share_target && j.share_target.action].concat((j.shortcuts || []).map((s) => s.url)).forEach((u) => {
     if (typeof u !== 'string') return;
-    let p = u; try { p = new URL(u, src).pathname; } catch (e) { /* оставить как есть */ }
+    let p = u; try { p = new URL(u, src).pathname; } catch (e) { /* keep as is */ }
     store.addHit({ raw: p, file: src, line: 1, col: 1, via: 'manifest', confidence: 'medium', snippet: 'web manifest' });
   });
   return true;
@@ -858,7 +858,7 @@ function handleSitemap(store, text, src, ctx) {
     store.addHit({ raw: p, file: src, line: 1, col: 1, via: 'sitemap', confidence: 'low', snippet: 'sitemap.xml' });
   }
 }
-// Свои правила пользователя: регулярные выражения с лимитом совпадений на файл
+// Custom user rules: regular expressions with a per-file match limit
 function applyRules(store, text, src) {
   const pos = lineIndex(text);
   for (const r of store.rules.slice(0, 50)) {
@@ -866,14 +866,14 @@ function applyRules(store, text, src) {
     let m, n = 0;
     while ((m = re.exec(text)) && n++ < 20) {
       if (!m[0]) { re.lastIndex++; continue; }
-      // Совпадение своего правила может быть секретом: в why и фрагменте только маска, исходник — для «показать»
+      // A custom rule match may be a secret: why and fragment hold only the mask, the original is for "show"
       const raw = snippetAt(text, m.index, m[0].length), v = m[0].slice(0, 120);
       const f = store.addSimple('custom', { title: String(r.title || r.id || 'Custom rule'), risk: Math.min(4, Math.max(0, r.risk | 0)), why: ['Rule "' + (r.id || r.title) + '": ' + mask(v)], file: src, line: pos(m.index).line, snippet: raw.split(m[0]).join(mask(m[0])) });
       if (f) f.snippetRaw = raw;
     }
   }
 }
-// Next.js: страницы из __NEXT_DATA__ и _buildManifest.js. Манифест — обычный JS-файл сайта, его можно скачать.
+// Next.js: pages from __NEXT_DATA__ and _buildManifest.js. The manifest is a plain site JS file, it can be downloaded.
 function nextJs(store, text, src, ctx) {
   const bid = /"buildId"\s*:\s*"([\w.-]{4,64})"/.exec(text);
   const hit = (raw, snippet) => store.addHit({ raw, file: src, line: 1, col: 1, via: 'next', confidence: 'high', snippet });
@@ -882,7 +882,7 @@ function nextJs(store, text, src, ctx) {
     try {
       const j = JSON.parse(nd[1]);
       if (typeof j.page === 'string' && j.page[0] === '/') { hit(j.page.replace(/\[([^\]]+)\]/g, '{$1}'), 'Next.js page'); if (j.buildId) hit('/_next/data/' + j.buildId + (j.page === '/' ? '/index' : j.page.replace(/\[([^\]]+)\]/g, '{$1}')) + '.json', 'Next.js page data'); }
-    } catch (e) { /* не JSON */ }
+    } catch (e) { /* not JSON */ }
   }
   if (bid && ctx.enqueue && /_next\//.test(text)) { const u = resolveAbs('/_next/static/' + bid[1] + '/_buildManifest.js', src); if (u) ctx.enqueue(u, ctx.depth || 0, 'next'); }
   if (/_buildManifest\.js$/.test(src.split('?')[0])) {
@@ -890,7 +890,7 @@ function nextJs(store, text, src, ctx) {
     while ((m = re.exec(text)) && n++ < 500) if (!/^\/_/.test(m[1])) hit(m[1].replace(/\[([^\]]+)\]/g, '{$1}'), 'Next.js build manifest');
   }
 }
-// GraphQL: имена операций из строк запросов в клиентском коде
+// GraphQL: operation names from query strings in client code
 function graphqlOps(store, text, src) {
   const pos = lineIndex(text);
   for (const g of graphqlFindings(text)) { const f = store.addSimple('graphql', { title: g.title, risk: g.risk, why: g.why, file: src, line: pos(g.at).line, snippet: snippetAt(text, g.at, 80) }); if (f) { f.op = g.op; f.frag = g.frag; } }
@@ -903,7 +903,7 @@ export function analyzeInto(store, text, src, ctx) {
   }
   if (/^https?:/.test(bare) && isWellKnown(new URL(bare).pathname)) {
     const w = wellKnownFile(text, bare, store.pageHost);
-    if (w && w.miss) return; // файла нет, сайт отдал страницу-заглушку: это не ошибка
+    if (w && w.miss) return; // file missing, site served a stub page: not an error
     if (w) { w.simple.forEach((f) => store.addSimple(f.kind, Object.assign({ file: src, line: 1 }, f))); w.hits.forEach((x) => store.addHit({ raw: x.raw, file: src, line: 1, col: 1, via: x.via, confidence: 'high', snippet: x.via + ': ' + x.raw })); }
     return;
   }
@@ -913,7 +913,7 @@ export function analyzeInto(store, text, src, ctx) {
     return;
   }
   if (/(?:manifest\.json|\.webmanifest)$/i.test(bare) && handleManifest(store, text, src)) return;
-  const head = text.slice(0, 20000); // у больших спецификаций поле openapi бывает дальше начала
+  const head = text.slice(0, 20000); // in big specs the openapi field can be past the start
   if ((text.trimStart()[0] === '{' && /"(?:openapi|swagger)"\s*:\s*"/.test(head)) || /^\s*(?:openapi|swagger)\s*:/m.test(head)) {
     const eps = openApiEndpoints(text);
     if (eps) { eps.forEach((e) => store.addHit({ raw: e.path, method: e.method, params: e.params, file: src, line: 1, col: 1, via: 'openapi', confidence: 'high', snippet: 'OpenAPI: ' + e.method + ' ' + e.path })); return; }
@@ -921,14 +921,14 @@ export function analyzeInto(store, text, src, ctx) {
   if (/\/robots\.txt$/i.test(bare)) { handleRobots(store, text, src, ctx); return; }
   if (/\/sitemap[^\/]*\.xml$/i.test(bare)) { handleSitemap(store, text, src, ctx); return; }
   const a = analyze(text, src);
-  // Секрет внутри адреса (токен в пути, webhook) не должен попасть в список эндпоинтов открытым
+  // A secret inside a URL (token in path, webhook) must not appear open in the endpoint list
   const secretVals = a.secrets.filter((s) => !s.noMask).map((s) => s.raw);
   a.hits.forEach((h) => { secretVals.forEach((v) => { h.raw = String(h.raw).split(v).join('{secret}'); }); store.addHit(h); });
   a.secrets.forEach((s) => store.addSecret(s));
   a.pii.forEach((p) => store.addPii(p));
   a.clouds.forEach((c) => store.addCloud(c));
   a.simple.forEach((f) => store.addSimple(f.kind, f));
-  // Баннеры «/*! name v1.2.3» и «@license name 1.2.3»: зависимость с версией — для проверки известных вредоносных версий
+  // Banners "/*! name v1.2.3" and "@license name 1.2.3": dependency with version, to check known malicious versions
   for (const m of text.slice(0, 400000).matchAll(/(?:\/\*!|@license)\s+(@?[a-z0-9][\w.-]{1,60}(?:\/[\w.-]{1,60})?)\s+v?(\d+\.\d+\.\d+(?:-[\w.]+)?)/gi)) store.addDep(m[1].toLowerCase(), m[2], src);
   a.tech.forEach((t) => store.addTech(t, src));
   nextJs(store, text, src, ctx);
@@ -938,12 +938,12 @@ export function analyzeInto(store, text, src, ctx) {
   a.inlineMaps.forEach((t) => parseSourceMaps(t).forEach((j) => handleMap(store, j, src + '(inline-map)')));
   if (ctx.enqueue) {
     const d = (ctx.depth || 0) + 1;
-    a.refs.forEach((r) => ctx.enqueue(r.abs, r.via === 'sourcemap' ? ctx.depth || 0 : d, r.via)); // map своего скрипта не тратит глубину
+    a.refs.forEach((r) => ctx.enqueue(r.abs, r.via === 'sourcemap' ? ctx.depth || 0 : d, r.via)); // a script's own map does not spend depth
     if (ctx.guessMaps && /\.m?js$/i.test(bare) && !a.maps.length && !a.inlineMaps.length) ctx.enqueue(bare + '.map', d, 'guess');
   }
 }
 
-// fetchText(url, {cookies}) → {ok, status, text, headers}. Передаётся снаружи, поэтому crawl тестируется в node.
+// fetchText(url, {cookies}) -> {ok, status, text, headers}. Passed in from outside, so crawl is testable in node.
 export async function crawl(o) {
   const store = o.store, scope = o.scope, maxDepth = o.maxDepth == null ? 3 : o.maxDepth, conc = o.conc || 4, maxFiles = o.maxFiles || 400;
   const seen = new Set(), queue = [], stopped = new Set(), spaHosts = new Set();
@@ -966,33 +966,33 @@ export async function crawl(o) {
   async function run(item) {
     const host = hostOf(item.url);
     if (stopped.has(host) || o.isStopped && o.isStopped()) return;
-    if (item.via === 'well-known' && spaHosts.has(host)) return; // сайт отвечает заглушкой SPA на любой путь: остальные служебные файлы не запрашиваем
+    if (item.via === 'well-known' && spaHosts.has(host)) return; // site answers any path with an SPA stub: other service files are not requested
     fetched++;
     let r;
     try { r = await o.fetchText(item.url, { cookies: !!o.cookies, force: item.force }); } catch (e) { r = { ok: false, status: 0, error: String(e && e.message || e) }; }
-    const why = r && (r.blocked || blockedReason(r)); // сборщик уже мог распознать страницу проверки и не прислать её текст
+    const why = r && (r.blocked || blockedReason(r)); // the collector may already have recognized a check page and not sent its text
     if (why) { stopped.add(host); store.blocked.push({ host, reason: why }); (store.errors.length < 500) && store.errors.push({ url: item.url, status: r.status, error: why }); tick(); return; }
-    // Лимит запросов или объёма исчерпан: остальные файлы тоже не скачаются, очередь больше не гоняем
+    // Request or volume limit exhausted: other files will not download either, stop running the queue
     if (r && (r.error === 'budget' || r.error === 'limit')) { queue.length = 0; (store.errors.length < 500) && store.errors.push({ url: item.url, status: 0, error: r.error }); tick(); return; }
     if (!r || !r.ok || typeof r.text !== 'string') {
-      if (!(r && r.status === 404 && /well-known|sitemap|vite-manifest/.test(item.via))) (store.errors.length < 500) && store.errors.push({ url: item.url, status: r && r.status, error: r && r.error }); // нет robots/sitemap — это норма
+      if (!(r && r.status === 404 && /well-known|sitemap|vite-manifest/.test(item.via))) (store.errors.length < 500) && store.errors.push({ url: item.url, status: r && r.status, error: r && r.error }); // no robots/sitemap is normal
       tick(); return;
     }
     const isMap = /\.map$/i.test(new URL(item.url).pathname);
-    const text = !isMap && r.text.length > MAX_TEXT ? r.text.slice(0, MAX_TEXT) : r.text; // обрезанный JSON карты не разберётся
-    if (text !== r.text) { const sm2 = /[#@]\s*sourceMappingURL\s*=\s*([^\s'"`*]+)\s*$/.exec(r.text.slice(-2000)); if (sm2) { try { enqueue(new URL(sm2[1], item.url).href, item.depth, 'sourcemap'); } catch (e) { /* битый адрес */ } } } // ссылка на карту стоит в конце файла, за обрезкой
-    // Заглушка SPA (HTML, в том числе начинающийся с комментария) вместо JS, map, robots, sitemap или служебного файла — не файл
-    if (isMap && !/^\s*(?:\)\]\}'[^\n]*\n\s*)?\{/.test(text) || /\.(?:m?js|map|txt|json|webmanifest)$|\/\.well-known\//i.test(new URL(item.url).pathname) && /^\s*<(?:!--|!doctype|html|head|body)/i.test(text) || /\.xml$/i.test(new URL(item.url).pathname) && /^\s*<(?:!doctype html|html)/i.test(text)) { if (item.via === 'well-known') spaHosts.add(host); else (store.errors.length < 500) && store.errors.push({ url: item.url, status: r.status, error: 'HTML returned instead of a file' }); tick(); return; } // отсутствующий служебный файл — норма, не ошибка
+    const text = !isMap && r.text.length > MAX_TEXT ? r.text.slice(0, MAX_TEXT) : r.text; // a truncated map JSON cannot be parsed
+    if (text !== r.text) { const sm2 = /[#@]\s*sourceMappingURL\s*=\s*([^\s'"`*]+)\s*$/.exec(r.text.slice(-2000)); if (sm2) { try { enqueue(new URL(sm2[1], item.url).href, item.depth, 'sourcemap'); } catch (e) { /* broken URL */ } } } // the map link sits at the end of the file, past the truncation
+    // SPA stub (HTML, including one starting with a comment) instead of JS, map, robots, sitemap or service file is not a file
+    if (isMap && !/^\s*(?:\)\]\}'[^\n]*\n\s*)?\{/.test(text) || /\.(?:m?js|map|txt|json|webmanifest)$|\/\.well-known\//i.test(new URL(item.url).pathname) && /^\s*<(?:!--|!doctype|html|head|body)/i.test(text) || /\.xml$/i.test(new URL(item.url).pathname) && /^\s*<(?:!doctype html|html)/i.test(text)) { if (item.via === 'well-known') spaHosts.add(host); else (store.errors.length < 500) && store.errors.push({ url: item.url, status: r.status, error: 'HTML returned instead of a file' }); tick(); return; } // a missing service file is normal, not an error
     store.files.push(item.url);
-    // Карта с исходниками не хранится целиком: её исходники сохраняются по отдельности, иначе текст лежал бы дважды
+    // Map with sources is not stored whole: its sources are saved separately, else the text would be stored twice
     if (!(isMap && /"sourcesContent"\s*:\s*\[\s*"/.test(text))) store.addText(item.url, text, r.headers && r.headers['content-type']);
     try { analyzeInto(store, text, item.url, { enqueue, depth: item.depth, guessMaps: o.guessMaps }); }
-    catch (e) { (store.errors.length < 500) && store.errors.push({ url: item.url, status: r.status, error: 'not parsed: ' + (e && e.message || e) }); } // один кривой файл не роняет скан
-    // Карта кода может быть объявлена заголовком ответа, а не комментарием в файле (SourceMap; X-SourceMap — старое имя)
+    catch (e) { (store.errors.length < 500) && store.errors.push({ url: item.url, status: r.status, error: 'not parsed: ' + (e && e.message || e) }); } // one broken file does not kill the scan
+    // Source map may be declared by a response header, not a comment in the file (SourceMap; X-SourceMap is the old name)
     const sm = r.headers && (r.headers.sourcemap || r.headers['x-sourcemap']);
-    if (sm) { try { enqueue(new URL(sm, item.url).href, item.depth, 'sourcemap'); } catch (e) { /* битый адрес карты */ } }
+    if (sm) { try { enqueue(new URL(sm, item.url).href, item.depth, 'sourcemap'); } catch (e) { /* broken map URL */ } }
     tick();
-    await new Promise((res) => setTimeout(res, 0)); // разбор файла — синхронная работа: отдаём поток странице между файлами
+    await new Promise((res) => setTimeout(res, 0)); // parsing a file is synchronous: yield the thread to the page between files
   }
   tick();
   while (queue.length && fetched < maxFiles && !(o.isStopped && o.isStopped())) {

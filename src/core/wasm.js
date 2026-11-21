@@ -1,16 +1,16 @@
-// E2: разбор WebAssembly по байтам — без компиляции и запуска (CSP страницы не затрагивается). Читаются заголовок, импорты, экспорты,
-// имена пользовательских секций, producers, имена функций, ссылки на отладочные данные и строки из секции данных.
+// WebAssembly parsing by bytes, without compiling or running (page CSP is not affected). Reads header, imports, exports,
+// custom section names, producers, function names, debug data references and strings from the data section.
 const KIND = ['func', 'table', 'memory', 'global', 'tag'];
 export function parseWasm(b) {
   const r = { ok: false, version: 0, sections: 0, imports: [], exports: [], customs: [], producers: {}, funcNames: [], externalDebugInfo: null, sourceMappingURL: null, urls: [], paths: [], truncated: false };
   if (!(b instanceof Uint8Array)) b = new Uint8Array(b);
   if (b.length < 8 || b[0] !== 0 || b[1] !== 0x61 || b[2] !== 0x73 || b[3] !== 0x6d) return Object.assign(r, { error: 'not wasm' });
   r.version = b[4] | (b[5] << 8); r.ok = true;
-  if (b[6] | (b[7] << 8)) return Object.assign(r, { layer: b[6] | (b[7] << 8), error: 'component' }); // Component Model: другой формат, модуль не разбираем
+  if (b[6] | (b[7] << 8)) return Object.assign(r, { layer: b[6] | (b[7] << 8), error: 'component' }); // Component Model: a different format, the module is not parsed
   let p = 8;
   const dec = new TextDecoder('utf-8');
   const leb = () => { let v = 0, s = 0; for (let i = 0; i < 5; i++) { if (p >= b.length) throw new Error('truncated'); const x = b[p++]; v |= (x & 0x7f) << s; if (!(x & 0x80)) return v >>> 0; s += 7; } throw new Error('bad leb'); };
-  const str = () => { const n = leb(); if (p + n > b.length) throw new Error('truncated'); let s = ''; try { s = dec.decode(b.subarray(p, p + n)); } catch (e) { /* не UTF-8 */ } p += n; return s; };
+  const str = () => { const n = leb(); if (p + n > b.length) throw new Error('truncated'); let s = ''; try { s = dec.decode(b.subarray(p, p + n)); } catch (e) { /* not UTF-8 */ } p += n; return s; };
   try {
     while (p < b.length) {
       const id = b[p++], size = leb(), start = p, end = p + size;
@@ -33,14 +33,14 @@ export function parseWasm(b) {
       } else if (id === 11) {
         let s = ''; for (let i = start; i < end; i++) s += String.fromCharCode(b[i]);
         const seen = new Set(), paths = new Set(); for (const m of s.matchAll(/https?:\/\/[\x21-\x7e]{4,200}|\/[\w./-]{3,200}/g)) { const t = m[0][0] === 'h' ? seen : paths; if (t.size < 50) t.add(m[0]); }
-        r.urls = Array.from(seen); r.paths = Array.from(paths); // пути из данных — не URL
+        r.urls = Array.from(seen); r.paths = Array.from(paths); // paths from data are not URLs
       }
       p = end;
     }
   } catch (e) { r.truncated = true; r.error = e.message; }
   return r;
 }
-// Поля для блока метаданных в «Файлах»
+// Fields for the metadata block in "Files"
 export function wasmFields(w) {
   const f = [['Imports', w.imports.length + ''], ['Exports', w.exports.length + '']];
   const tool = (w.imports.find((i) => /^(?:wasi_snapshot_preview1|gojs|__wbindgen_placeholder__|wbg)$/.test(i.module)) || {}).module;

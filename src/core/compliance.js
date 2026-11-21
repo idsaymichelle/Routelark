@@ -1,6 +1,6 @@
-// D1: соответствие ASVS 5.0 (глава V3, веб-фронтенд) и WSTG v4.2 (CLNT, INFO) по тому, что видно из браузера.
-// Статусы: pass — видно целиком и нарушений нет; fail — найден признак (подсказка для ручной проверки); check — видно частично; na — браузер этого не видит.
-// Названия требований — короткие пересказы, не цитаты.
+// ASVS 5.0 (chapter V3, web frontend) and WSTG v4.2 (CLNT, INFO) compliance, limited to what is visible from the browser.
+// Statuses: pass - fully visible, no violations; fail - an indicator found (hint for manual check); check - partly visible; na - the browser cannot see it.
+// Requirement names are short paraphrases, not quotes.
 const SENS = /sess|sid|token|auth|jwt|csrf|login|remember/i;
 export function complianceRows(store, app) {
   const H = store.docHeaders, items = store.items, has = (pred) => items.some(pred);

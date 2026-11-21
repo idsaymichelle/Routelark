@@ -58,18 +58,18 @@ test('внешний скрипт получает via external-script, внеш
 });
 
 test('QA 19/20/34/31-F8: импорт, Files, модель, канал', () => {
-  // 19-F4: незакрытые <item> не дают квадратичного времени; 19-F6: битый ZAP; 19-F5: тела base64
+  // unclosed <item> must not cause quadratic time; broken ZAP; base64 bodies
   const t0 = Date.now(); parseTrafficExport('<items burpVersion="1">' + '<item>'.repeat(50000)); assert.ok(Date.now() - t0 < 1000);
   assert.deepEqual(parseTrafficExport(JSON.stringify({ site: [null, { alerts: [null, { instances: [{ uri: 'https://a.b/x', method: 'GET' }] }] }] })).requests, [{ url: 'https://a.b/x', method: 'GET' }]);
   const har = { log: { entries: [{ request: { url: 'https://a.b/' }, response: { content: { encoding: 'base64', text: Buffer.from('fetch("/api/hidden")').toString('base64') } } }] } };
   assert.deepEqual(parseTrafficExport(JSON.stringify(har)).bodies, ['fetch("/api/hidden")']);
   const inj = '<items burpVersion="1"><item><url><![CDATA[https://a.com/x]]></url><method>GET</method><response base64="false"><![CDATA[foo <item><url>https://evil.com/inj</url><method>POST</method></item>]]></response></item></items>';
   assert.deepEqual(parseTrafficExport(inj).requests, [{ url: 'https://a.com/x', method: 'GET' }]);
-  // 20-F3: точки с запятой внутри функции в скобках разбиваются по строкам; 20-F2: позиция в переформатированном JSON
+  // semicolons inside a parenthesized function split into lines; position in reformatted JSON
   assert.equal(prettyJs('(function(){a();b();})()').split('\n').length >= 4, true);
   const j = '{"a":1,"b":{"key":"s"},"c":{"key":2}}';
   assert.deepEqual(displayPosition(j, 'json', 1, j.lastIndexOf('"key') + 1), { line: 7, col: 5 });
-  // 34-F1: «?» не прилипает к первому методу; 34-F3: внешние не в уровнях; 34-F4: карта авторизации без внешних
+  // '?' does not stick to the first method; externals not in levels; auth map without externals
   const s = new C.Store('https://a.example/');
   s.addHit({ raw: '/api/w', method: 'POST', via: 'call', file: 'x', line: 1, col: 1 });
   s.addHit({ raw: '/api/w', method: 'GET', via: 'call', file: 'x', line: 1, col: 1 });
@@ -120,7 +120,7 @@ test('аудит: ответ без Content-Length режется по пред�
   await c.idle();
   const r = sent.find((m) => m.type === 'fetched');
   assert.equal(r.error, 'too-large'); assert.ok(cancelled); assert.ok(reads < 10);
-  // обход: после «budget» остальные файлы не запрашиваются
+  // crawl: after 'budget' the remaining files are not requested
   const s = new C.Store('https://a.test/'); let n = 0;
   await C.crawl({ store: s, seeds: Array.from({ length: 50 }, (_, i) => ({ url: 'https://a.test/' + i + '.js', depth: 1 })), fetchText: async () => (++n > 5 ? { ok: false, status: 0, error: 'budget' } : { ok: true, status: 200, text: 'var a', headers: {} }), isStopped: () => false, conc: 1, maxFiles: 2000, maxDepth: 3, scope: C.makeScope({ pageUrl: 'https://a.test/' }) });
   assert.equal(n, 6);

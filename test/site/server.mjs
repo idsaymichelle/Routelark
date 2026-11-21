@@ -1,7 +1,7 @@
-// Тестовый стенд: node test/site/server.mjs [порт]. Раздаёт dist/ и пишет журнал запросов в stdout.
-// /csp/...  — те же файлы со строгой CSP;  /coop/... — с Cross-Origin-Opener-Policy;
-// /limit.js — всегда 429. По журналу видно, что Routelark запрашивает только служебные файлы.
-// /__log — журнал глазами сайта: каждый запрос с методом, заголовками и cookies, обновляется сам.
+// Test stand: node test/site/server.mjs [port]. Serves dist/ and writes a request log to stdout.
+// /csp/... - same files with a strict CSP;  /coop/... - with Cross-Origin-Opener-Policy;
+// /limit.js - always 429. The log shows that Routelark requests only service files.
+// /__log - the log as the site sees it: every request with method, headers and cookies, auto-refreshing.
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
@@ -9,7 +9,7 @@ import { extname, join, normalize } from 'node:path';
 const dist = join(new URL('.', import.meta.url).pathname, '../../dist');
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'application/javascript', '.css': 'text/css', '.json': 'application/json', '.map': 'application/json', '.txt': 'text/plain' };
 const port = +process.argv[2] || 8888;
-const log = []; let seq = 0; // журнал в памяти, последние 2000 запросов
+const log = []; let seq = 0; // in-memory log, last 2000 requests
 const pick = (h) => ({ ua: h['user-agent'] || '', origin: h.origin || '', referer: h.referer || '', cookies: (h.cookie || '').split(/;\s*/).map((c) => c.split('=')[0]).filter(Boolean), dest: h['sec-fetch-dest'] || '', mode: h['sec-fetch-mode'] || '', site: h['sec-fetch-site'] || '', ip: '' });
 
 createServer(async (req, res) => {
@@ -34,12 +34,12 @@ createServer(async (req, res) => {
   log.push(Object.assign({ n: ++seq, t: Date.now(), method: req.method, url: req.url, status }, pick(req.headers), { ip: req.socket.remoteAddress }));
   if (log.length > 2000) log.shift();
 }).on('error', (e) => {
-  // Порт занят: обычно это уже запущенный Routelark в другом терминале
+  // Port in use: usually Routelark is already running in another terminal
   if (e.code === 'EADDRINUSE') { console.error('Port ' + port + ' is busy. Stop the other server (lsof -i :' + port + ') or pass another port: node test/site/server.mjs 8889'); process.exit(1); }
   throw e;
 }).listen(port, '127.0.0.1', () => console.log('Routelark: http://localhost:' + port + '/   Request log: http://localhost:' + port + '/__log'));
 
-// Страница журнала. Данные вставляются только через textContent
+// Log page. Data is inserted only via textContent
 const LOG_PAGE = `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Request log</title>
 <style>
 :root{--bg:#fff;--fg:#1a1a1a;--mut:#6b6b6b;--line:#e5e5e5;--bad:#c0392b;--ok:#1e7e5a;color-scheme:light dark}
@@ -58,7 +58,7 @@ tr.mark td{border-top:2px solid var(--fg)}
 let after = 0, total = 0, nonGet = 0, markAt = 0;
 const rows = document.getElementById('rows'), sum = document.getElementById('sum');
 const td = (text, cls) => { const e = document.createElement('td'); e.textContent = text; if (cls) e.className = cls; return e; };
-// Тип по Sec-Fetch-Dest: empty — запрос из кода (fetch/XHR: так ходит Routelark), script/style/document — обычная загрузка браузером
+// Type by Sec-Fetch-Dest: empty = request from code (fetch/XHR, how Routelark fetches), script/style/document = ordinary browser load
 const kind = (e) => e.dest === 'empty' ? 'fetch from code (' + e.mode + ')' : (e.dest || '?') + ' load';
 function add(e) {
   const tr = document.createElement('tr'); if (markAt && e.n === markAt) tr.className = 'mark';
@@ -66,7 +66,7 @@ function add(e) {
   rows.prepend(tr); total++; if (e.method !== 'GET') nonGet++;
 }
 async function poll() {
-  try { const list = await (await fetch('/__log.json?after=' + after, { cache: 'no-store' })).json(); list.forEach((e) => { if (markAt === -1) markAt = e.n; add(e); after = e.n; }); } catch (e) { /* сервер перезапускается */ }
+  try { const list = await (await fetch('/__log.json?after=' + after, { cache: 'no-store' })).json(); list.forEach((e) => { if (markAt === -1) markAt = e.n; add(e); after = e.n; }); } catch (e) { /* server is restarting */ }
   sum.textContent = total + ' requests, ' + nonGet + ' not GET';
 }
 document.getElementById('mark').onclick = () => { markAt = -1; };

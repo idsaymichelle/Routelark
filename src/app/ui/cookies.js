@@ -1,4 +1,4 @@
-// Cookies страницы: список, расшифровка, редактор, импорт и экспорт. Запись выполняет сборщик на странице.
+// Page cookies: list, decoding, editor, import and export. The collector on the page does the writing.
 import { h, button, copy, copyIcon, download, dot, kv } from './dom.js';
 import { decodeValue, auditCookie, parseCookieInput, exportCookies, isSensitiveCookie, badCookieValue } from '../../core/cookies.js';
 import { t } from '../../i18n.js';
@@ -11,13 +11,13 @@ export function renderCookies(ctx) {
   const { app, actions } = ctx, list = app.cookies, https = app.page ? /^https:/.test(app.page.url) : true, canWrite = !!app.link && !app.link.closed;
   const ui = app.cookieUi || (app.cookieUi = { draft: null, undo: null, importText: '', preview: null, note: '' });
   const sel = app.sel === '+new' ? null : list.find((c) => keyOf(c) === app.sel) || (app.sel === '+import' ? null : list[0]);
-  // note хранится по-английски, t() применяется при выводе
+  // note is stored in English, t() is applied on output
   const apply = (p, note) => p.then((r) => { if (r && r.cookies) app.cookies = r.cookies; ui.draft = null; ui.note = r && r.ok ? note : r && r.duplicate ? 'Saved, but the site has another cookie with this name (for another path or domain). The browser keeps both, and the site may read the other one' : (r && r.cookies ? 'Failed: the browser did not accept the change' : 'Failed: the site page did not respond'); actions.render(); });
   const guard = (c) => !isSensitiveCookie(c.name) || window.confirm(t('"{name}" looks like a session cookie. Changing it may log you out of the site. Continue?', { name: c.name }));
   function write(c, before, note) {
     if (!guard(c)) return;
-    // Отмена: вернуть прежнюю cookie или удалить созданную
-    // Если сменился путь или домен, новая cookie — отдельная: при отмене её тоже удаляем
+    // Undo: restore the previous cookie or delete the created one
+    // If the path or domain changed, the new cookie is separate: delete it too on undo
     ui.undo = before ? async () => { if (before.path !== c.path || before.domain !== c.domain) await app.link.deleteCookie(c); return apply(app.link.setCookie(before), 'Undone'); } : () => apply(app.link.deleteCookie(c), 'Undone');
     apply(app.link.setCookie(c), note);
   }
@@ -27,7 +27,7 @@ export function renderCookies(ctx) {
     canWrite ? button(t('Import'), () => actions.select('+import')) : null,
     button('JSON', () => download('cookies.json', exportCookies(list, 'json'), 'application/json')),
     button('Netscape', () => download('cookies.txt', exportCookies(list, 'netscape', app.page ? new URL(app.page.url).hostname : ''))),
-    // Строка «Cookie: a=1; b=2» для вставки в curl, Burp или Postman; без отклика казалось, что кнопка не работает
+    // "Cookie: a=1; b=2" line to paste into curl, Burp or Postman; without feedback the button seemed broken
     button(t('Copy Cookie header'), () => { copy('Cookie: ' + exportCookies(list, 'header')); ui.note = 'Cookie header copied'; actions.render(); }),
     ui.undo && canWrite ? button(t('Undo last'), () => { const u = ui.undo; ui.undo = null; u(); }) : null));
   left.append(h('p', { class: 'hint', text: t('HttpOnly cookies are hidden from the page by the browser and are not listed here. In Safari, cookies written from JS live no longer than 7 days') + (ui.note ? '. ' + t(ui.note) : '') }));
@@ -82,7 +82,7 @@ export function renderCookies(ctx) {
       if (ui.preview.length) box.append(h('div', { class: 'acts' }, button(t('Apply'), async () => {
         const todo = ui.preview, before = list.slice();
         if (todo.some((c) => isSensitiveCookie(c.name)) && !window.confirm(t('The import contains session cookies. Your current session on the site may change. Continue?'))) return;
-        const written = todo.map((c) => Object.assign({}, c, { hostOnly: true, domain: undefined })); // пишем только на этот хост
+        const written = todo.map((c) => Object.assign({}, c, { hostOnly: true, domain: undefined })); // write to this host only
         const results = []; for (const c of written) results.push(await app.link.setCookie(c));
         const failed = written.filter((c, i) => !(results[i] && results[i].ok)).map((c) => c.name), last = results[results.length - 1];
         ui.undo = async () => { let r; for (const c of written) r = await (before.find((b) => b.name === c.name) ? app.link.setCookie(before.find((b) => b.name === c.name)) : app.link.deleteCookie(c)); apply(Promise.resolve(r), 'Import undone'); };

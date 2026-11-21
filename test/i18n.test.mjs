@@ -61,7 +61,7 @@ test('отчёт Markdown следует языку', () => {
   const ru = md.build(s, s.list(), {}), json = FORMATS.find((x) => x.id === 'json').build(s, s.list(), {});
   setLang('en');
   assert.match(ru, /## Сводка/);
-  assert.doesNotMatch(json, /[А-Яа-яЁё]/); // машинные форматы не переводятся
+  assert.doesNotMatch(json, /[А-Яа-яЁё]/); // machine formats are not translated
 });
 
 test('данные сайта не переводятся: имя файла и сниппет остаются как есть', async () => {

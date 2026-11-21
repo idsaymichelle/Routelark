@@ -1,4 +1,4 @@
-// Вкладка «Карта»: дерево поверхности атаки с цветом наибольшего риска и карта авторизации по хостам.
+// "Map" tab: attack surface tree colored by the highest risk, and a per-host authorization map.
 import { h, dot } from './dom.js';
 import { t } from '../../i18n.js';
 import { surfaceTree, authMap } from '../../core/map.js';
@@ -6,7 +6,7 @@ import { KINDS } from './findings.js';
 const LV = ['info', 'low', 'medium', 'high', 'critical'];
 export function renderMap(ctx) {
   const { store, actions } = ctx, tree = surfaceTree(store), auth = authMap(store);
-  // У узла хоста своих id нет: берём id первого потомка
+  // A host node has no ids of its own: take the id of the first descendant
   const first = (n) => n.ids[0] || n.kids.reduce((id, k) => id || first(k), null);
   const node = (x, depth) => h('li', {}, h('button', { class: 'link mapnode', type: 'button', onclick: () => { const id = first(x), f = id && store.items.find((i) => i.id === id); if (f) { actions.setTab(Object.keys(KINDS).find((k) => KINDS[k].includes(f.kind)) || 'api'); actions.select(f.id); } } }, dot(LV[x.risk]), ' ', h('span', { class: 'mono', text: (depth ? '/' : '') + x.name }), h('span', { class: 'muted', text: ' ' + x.n })),
     x.kids.length && depth < 3 ? h('ul', { class: 'tree' }, x.kids.map((k) => node(k, depth + 1))) : null);

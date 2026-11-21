@@ -1,10 +1,10 @@
-// E4: операции, фрагменты, переменные и persisted-идентификаторы GraphQL из клиентского кода, черновик SDL.
-// Это не интроспекция: типы полей угадываются и помечаются «# guessed». Карты persisted-запросов не запрашиваются.
-const OP = /(?:^|[^\w$. \t])[ \t]*(query|mutation|subscription)\b\s*(?:([A-Za-z_]\w{0,79})\s*)?(\(\s*\$[^)]{0,600}\)\s*)?(?:@\w+(?:\s*\([^)]{0,200}\))?\s*)?\{/g; // аргументы — только переменные $x: метод JS query(a) {…} не операция
+// GraphQL operations, fragments, variables and persisted ids from client code, SDL draft.
+// Not introspection: field types are guessed and marked "# guessed". Persisted-query maps are not requested.
+const OP = /(?:^|[^\w$. \t])[ \t]*(query|mutation|subscription)\b\s*(?:([A-Za-z_]\w{0,79})\s*)?(\(\s*\$[^)]{0,600}\)\s*)?(?:@\w+(?:\s*\([^)]{0,200}\))?\s*)?\{/g; // arguments are variables only: a JS method query(a) {...} is not an operation
 const FRAG = /(?:^|[^\w$. \t])[ \t]*fragment\s+([A-Za-z_]\w{0,79})\s+on\s+([A-Za-z_]\w{0,79})\s*(?:@\w+(?:\s*\([^)]{0,200}\))?\s*)?\{/g;
-const SENSITIVE = /\b(?:delete|remove|destroy|revoke|transfer|role|admin|grant|ban)(?:s|d|ed)?\b/i; // слово целиком после разбиения camelCase: updateBanner не «ban»
+const SENSITIVE = /\b(?:delete|remove|destroy|revoke|transfer|role|admin|grant|ban)(?:s|d|ed)?\b/i; // whole word after camelCase splitting: updateBanner is not "ban"
 
-// Поля первого и второго уровня тела: { a(x: $v) { b c } d } → [{name:'a', args:['x'], children:['b','c']}, {name:'d'}]
+// First and second level fields of the body: { a(x: $v) { b c } d } -> [{name:'a', args:['x'], children:['b','c']}, {name:'d'}]
 function fields(text, start) {
   const body = text.slice(start, start + 20000).replace(/\\n/g, '\n').replace(/"(?:[^"\\]|\\.)*"|#[^\n]*/g, '""');
   const out = []; let depth = 0, cur = null, i = 0;
@@ -39,7 +39,7 @@ export function graphqlFromText(text) {
   while ((m = apq.exec(text)) && persisted.length < 200) persisted.push({ kind: 'apq', id: m[2], name: '', at: m.index });
   return { ops, fragments, persisted };
 }
-// Простые находки для Store: { title, risk, why, at }
+// Simple findings for Store: { title, risk, why, at }
 export function graphqlFindings(text) {
   const g = graphqlFromText(text), out = [];
   for (const o of g.ops) {
@@ -50,9 +50,9 @@ export function graphqlFindings(text) {
   for (const p of g.persisted) out.push({ title: 'persisted ' + (p.name || p.kind) + ' ' + p.id.slice(0, 16), risk: 0, why: ['Persisted operation id: the server runs it by id, check its authorization'], at: p.at });
   return out;
 }
-// Черновик SDL по собранным операциям и фрагментам
+// SDL draft from the collected operations and fragments
 export function sdlDraft(items) {
-  const types = new Map(), add = (t, name, line) => { if (name.startsWith('__')) return; /* зарезервировано спекой */ if (!types.has(t)) types.set(t, new Map()); const m = types.get(t); if (!m.has(name) && m.size < 200) m.set(name, line); };
+  const types = new Map(), add = (t, name, line) => { if (name.startsWith('__')) return; /* reserved by the spec */ if (!types.has(t)) types.set(t, new Map()); const m = types.get(t); if (!m.has(name) && m.size < 200) m.set(name, line); };
   const root = { query: 'Query', mutation: 'Mutation', subscription: 'Subscription' };
   for (const it of items) {
     if (it.op) for (const f of it.op.fields) {
@@ -64,7 +64,7 @@ export function sdlDraft(items) {
     if (it.frag) for (const f of it.frag.fields) add(it.frag.on, f.name, f.name + ': String # guessed');
   }
   if (!types.size) return '';
-  // Схема должна быть валидной: тип Query обязателен, неизвестные типы аргументов объявляются как scalar
+  // The schema must be valid: a Query type is required, unknown argument types are declared as scalar
   if (!types.has('Query')) types.set('Query', new Map([['_placeholder', '_placeholder: String # no queries seen in client code']]));
   const body = Array.from(types, ([t, fs]) => 'type ' + t + ' {\n' + Array.from(fs.values(), (l) => '  ' + l).join('\n') + '\n}').join('\n\n');
   const used = new Set((body.match(/\(([^)]*)\)/g) || []).join(',').match(/:\s*\[?([A-Za-z_]\w*)/g) || []);

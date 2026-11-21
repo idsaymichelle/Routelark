@@ -1,4 +1,4 @@
-// Настройки скана и вкладки. Живут в памяти, пока открыта вкладка Routelark; в хранилище сайта не пишутся.
+// Scan and tab settings. Kept in memory while the Routelark tab is open; not written to site storage.
 import { parseProgram } from '../../core/program.js';
 import { h, button, download } from './dom.js';
 import { t } from '../../i18n.js';

@@ -1,5 +1,5 @@
-// D4, D8, D9: файлы .well-known (OIDC discovery, AASA, assetlinks, webauthn), ads/humans/llms.txt и следы мобильных приложений.
-// Файлы берутся одним GET каждый в seeds (переключатель служебных файлов); change-password не читается — он работает через редирект.
+// .well-known files (OIDC discovery, AASA, assetlinks, webauthn), ads/humans/llms.txt and mobile app traces.
+// Each file is one GET in seeds (service files toggle); change-password is not read because it works via redirect.
 import { siteOf } from './scope.js';
 export const WELL_KNOWN = ['/robots.txt', '/sitemap.xml', '/.well-known/security.txt', '/.well-known/openid-configuration', '/.well-known/oauth-authorization-server', '/.well-known/apple-app-site-association', '/.well-known/assetlinks.json', '/.well-known/webauthn', '/ads.txt', '/humans.txt', '/llms.txt'];
 const NAME = /\/(?:\.well-known\/(openid-configuration|oauth-authorization-server|apple-app-site-association|assetlinks\.json|webauthn|security\.txt)|(ads|humans|llms)\.txt)$/;
@@ -19,7 +19,7 @@ export function discoveryFindings(doc, prefix) {
   return out;
 }
 
-// Возвращает { simple: [...], hits: [...] } или null, если файл не похож на ожидаемый (заглушка SPA)
+// Returns { simple: [...], hits: [...] } or null if the file does not look as expected (SPA fallback)
 export function wellKnownFile(text, url, pageHost) {
   text = String(text).slice(0, 65536);
   const m = NAME.exec(new URL(url).pathname); if (!m) return null;
@@ -31,7 +31,7 @@ export function wellKnownFile(text, url, pageHost) {
     if (name === 'llms.txt') { const links = Array.from(text.matchAll(/\]\((\S{1,300}?)\)/g), (x) => x[1]).slice(0, 100); info('llms.txt: ' + links.length + ' links', 0, 'Links the site offers to AI crawlers: check for pages not linked elsewhere'); links.forEach((l) => hits.push({ raw: l, via: 'llms' })); }
     return { simple, hits };
   }
-  if (name === 'security.txt') { // RFC 9116: Contact и Expires обязательны, просроченный файл не читают
+  if (name === 'security.txt') { // RFC 9116: Contact and Expires are required, an expired file is not read
     const F = (k) => (new RegExp('^' + k + ':[ \\t]*(.+)$', 'im').exec(text) || [])[1];
     if (!F('Contact')) info('security.txt: no Contact field', 1, 'RFC 9116: Contact is required, so researchers have nobody to report to');
     const ex = F('Expires'), t = ex && Date.parse(ex);
@@ -40,10 +40,10 @@ export function wellKnownFile(text, url, pageHost) {
     return { simple, hits };
   }
   let j; try { j = JSON.parse(text); } catch (e) { return { simple: [], hits: [], miss: true }; }
-  if (!j || typeof j !== 'object') return { simple: [], hits: [], miss: true }; // null, число, строка
+  if (!j || typeof j !== 'object') return { simple: [], hits: [], miss: true }; // null, number, string
   if (/openid|oauth/.test(name)) {
     if (!j || typeof j.issuer !== 'string') return { simple: [], hits: [], miss: true };
-    simple.push(...discoveryFindings(j, (u => u.origin + u.pathname.replace(/\/\.well-known\/[^/]+$/, ''))(new URL(url)))); // issuer = префикс до /.well-known/ (Keycloak: /realms/x)
+    simple.push(...discoveryFindings(j, (u => u.origin + u.pathname.replace(/\/\.well-known\/[^/]+$/, ''))(new URL(url)))); // issuer = prefix before /.well-known/ (Keycloak: /realms/x)
     for (const k of ['authorization_endpoint', 'token_endpoint', 'userinfo_endpoint', 'revocation_endpoint', 'end_session_endpoint', 'registration_endpoint', 'jwks_uri']) if (typeof j[k] === 'string') hits.push({ raw: j[k], via: 'discovery' });
     if (j.registration_endpoint) info('Dynamic client registration endpoint', 1, 'Anyone may be able to register an OAuth client: check whether registration needs a token', 'auth');
   } else if (name === 'apple-app-site-association') {
@@ -64,7 +64,6 @@ export function wellKnownFile(text, url, pageHost) {
   return { simple, hits };
 }
 
-// D9: следы мобильных приложений в разметке и коде
 export function mobileHints(text) {
   const out = []; let m;
   if ((m = /<meta\b[^>]*name=["']apple-itunes-app["'][^>]*content=["'][^"']*app-id=(\d{5,12})/i.exec(text))) out.push({ title: 'iOS app id: ' + m[1], risk: 0, why: ['Smart App Banner: the site has an iOS app; its API may differ from the web one'], at: m.index });

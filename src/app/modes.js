@@ -1,27 +1,27 @@
-// Режимы скана: тихий (без своих запросов) и полный. Без DOM, чтобы правила проверялись тестом.
+// Scan modes: quiet (no own requests) and full. No DOM so the rules are testable.
 export const SCAN_KEYS = ['delay', 'budget', 'depth', 'cookies', 'wellKnown', 'guessMaps', 'osv', 'npmCheck', 'rules', 'allowHosts'];
 
-// Настройки скана для режима: тихий не делает ни одного своего запроса — ни к сайту, ни к OSV и npm
+// Scan settings for a mode: quiet makes no own requests - not to the site, OSV or npm
 export const settingsFor = (mode, s) => (mode === 'full' ? s : Object.assign({}, s, { noRequests: true, osv: false, npmCheck: false }));
 
-// Изменились ли настройки, от которых зависят результаты (язык и тема не в счёт)
+// Whether result-affecting settings changed (language and theme do not count)
 export const scanChanged = (a, b) => SCAN_KEYS.some((k) => JSON.stringify(a[k]) !== JSON.stringify(b[k]));
 
-// Сохранённые результаты по режимам. Поколение (gen) растёт при сбросе: скан, начатый до сброса, себя не сохранит
+// Saved results per mode. The generation (gen) grows on reset: a scan started before the reset will not save itself
 export function modeCache() {
   const byMode = {}, gen = {};
   return {
     get: (m) => byMode[m] || null,
     stores: () => Object.values(byMode).map((e) => e.store),
-    // Начало скана: идущий результат виден сразу при возврате в режим. Возвращает поколение для finish
+    // Scan start: the running result is visible at once when returning to the mode. Returns the generation for finish
     start(m, entry) { byMode[m] = entry; return gen[m] || 0; },
-    // Конец скана: сохраняется, если режим не сбрасывали и скан не упал (остановленный — сохраняется)
+    // Scan end: saved if the mode was not reset and the scan did not fail (a stopped one is saved)
     finish(m, token, entry, ok) {
       if (ok && (gen[m] || 0) === token) { byMode[m] = entry; return true; }
       if (byMode[m] && byMode[m].store === entry.store) delete byMode[m];
       return false;
     },
-    // Сбросить режим или оба; возвращает сброшенные режимы
+    // Reset one mode or both; returns the reset modes
     drop(m) { const list = m ? [m] : ['quiet', 'full']; for (const x of list) { gen[x] = (gen[x] || 0) + 1; delete byMode[x]; } return list; }
   };
 }

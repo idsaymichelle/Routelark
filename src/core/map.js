@@ -1,4 +1,4 @@
-// G6 и B8: карта поверхности атаки (хост → сегменты пути, число адресов и наибольший риск) и карта авторизации по хостам.
+// Attack surface map (host -> path segments, address count and highest risk) and per-host auth map.
 const AUTH_ROLE = /(?:^|\/)(?:(login|signin|sign-in|log-in)|(logout|signout|sign-out)|(refresh(?:[-_]?token)?)|(oauth2?\/(?:authorize|token|callback|userinfo|revoke)))(?=\/|$|\?)/i;
 import { ROUTE_KINDS } from './scope.js';
 export function surfaceTree(store) {
@@ -22,7 +22,7 @@ export function surfaceTree(store) {
 export function authMap(store) {
   const rows = new Map();
   for (const f of store.items) {
-    if (!ROUTE_KINDS.has(f.kind) || (f.kind === 'external' && !(f.auth || []).length)) continue; // чужой хост — только если на него уходит авторизация
+    if (!ROUTE_KINDS.has(f.kind) || (f.kind === 'external' && !(f.auth || []).length)) continue; // foreign host only if auth is sent to it
     const host = f.host || store.pageHost || '';
     if (!rows.has(host)) rows.set(host, { host, endpoints: 0, auth: new Set(), roles: new Set() });
     const r = rows.get(host); r.endpoints++;

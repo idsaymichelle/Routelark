@@ -1,5 +1,5 @@
-// B4 и F5: новые проверки заголовков документа — Permissions-Policy, отчёты, COOP/COEP, готовность HSTS к preload, Server-Timing,
-// Clear-Site-Data, дополнения CSP, отладочные заголовки и признаки кеша/CDN. Только чтение уже полученных заголовков.
+// Document header checks: Permissions-Policy, reporting, COOP/COEP, HSTS preload readiness, Server-Timing,
+// Clear-Site-Data, CSP additions, debug headers and cache/CDN signs. Only reads headers already fetched.
 const SENSITIVE = /^(?:camera|microphone|geolocation|display-capture|payment|usb|serial|hid|bluetooth|midi|publickey-credentials-get|publickey-credentials-create|identity-credentials-get|local-network-access|window-management)$/;
 const TIMING_NAMES = /^(?:db|database|sql|app|upstream|pod|host|node|region|az|backend)$/i;
 const CACHE_WHY = 'A shared cache may store this response. Confirm by hand, in a clean session, whether the response changes with login state';
@@ -27,7 +27,6 @@ export function extraHeaderFindings(h, isHttps, url) {
   if (!csp && h['content-security-policy-report-only']) add(1, 'CSP is only Report-Only, nothing is blocked', 'The policy only reports violations');
   if (h['x-debug-token-link']) add(1, 'X-Debug-Token-Link: profiler link in response', 'A debug profiler is on: open the link yourself while logged out');
   for (const k of ['x-debug-token', 'x-runtime', 'via', 'x-backend-server']) if (h[k]) add(0, k + ': ' + h[k], 'Reveals the implementation');
-  // F5: кеш и CDN
   const cc = new Map(String(h['cache-control'] || '').toLowerCase().split(',').map((p) => { const [k, v] = p.trim().split('='); return [k, v]; }));
   const cacheable = (+cc.get('max-age') > 0 || +cc.get('s-maxage') > 0) && !cc.has('private') && !cc.has('no-store');
   const priv = cc.has('private') || cc.has('no-store'), setCookie = !!h['set-cookie'];

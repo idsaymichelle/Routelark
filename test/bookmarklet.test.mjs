@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-// Поддельные окно страницы и вкладка: проверяем порядок запуска закладки без браузера
+// Fake page window and tab: check the bookmarklet start order without a browser
 function setup({ closed = false } = {}) {
   const calls = { run: 0, revoked: [], cleared: 0, interval: null, alerts: [] };
   const url = 'blob:https://shop.test/1';
@@ -22,7 +22,7 @@ const load = () => import('../src/bookmarklet.js?' + ++n);
 test('закладка открывает blob-адрес и запускает интерфейс только после загрузки вкладки', async () => {
   const { calls, doc, url } = setup();
   await load();
-  calls.interval(); assert.equal(calls.run, 0); // вкладка ещё грузится
+  calls.interval(); assert.equal(calls.run, 0); // tab is still loading
   Object.assign(doc, { URL: url, readyState: 'complete' });
   calls.interval(); calls.interval();
   assert.equal(calls.run, 1); assert.equal(calls.cleared, 1); assert.deepEqual(calls.revoked, [url]);

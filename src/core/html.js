@@ -1,5 +1,5 @@
-// Аудит разметки страницы: формы, смешанный контент, SRI, ссылки, комментарии, тексты ошибок, технологии по cookies.
-// Читается уже полученный HTML (снимок страницы). Запросов нет. Разбор регулярками: для эвристик этого достаточно.
+// Page markup audit: forms, mixed content, SRI, links, comments, error texts, technologies from cookies.
+// Reads the already fetched HTML (page snapshot). No requests. Regex parsing is enough for heuristics.
 
 import { speculationFindings } from './browser.js';
 const attr = (tag, name) => { const m = new RegExp('\\s' + name + '\\s*=\\s*(?:"([^"]*)"|\'([^\']*)\'|([^\\s>]+))', 'i').exec(tag); return m ? (m[1] != null ? m[1] : m[2] != null ? m[2] : m[3]) : null; };
@@ -8,7 +8,7 @@ const TOKEN_NAME = /csrf|xsrf|token|nonce|secret|api[_-]?key|session|auth|viewst
 const COMMENT_HINT = /todo|fixme|hack|\bbug\b|password|passwd|secret|token|api[_-]?key|admin|debug|internal|staging|\btest\b|dev\b|deprecated|remove|temporary|https?:\/\/|\/api\/|\b(?:10|172\.(?:1[6-9]|2\d|3[01])|192\.168)\.\d+\.\d+\b|[\w.+-]+@[\w-]+\.[\w.]+/i;
 const ERROR_TEXT = /Traceback \(most recent call last\)|Exception in thread|\bat [\w$.<>]+ \((?:[\w:/.\-]+):\d+:\d+\)|You have an error in your SQL syntax|SQLSTATE\[|ORA-\d{5}|Warning: [a-z_]+\(\)|Fatal error: |Stack trace:|Whitelabel Error Page|DEBUG = True|Fatal error(?:<[^>]{0,40}>)*\s*:|Uncaught \w*(?:Error|Exception)|NullReferenceException|System\.\w+Exception|org\.springframework\.|at [\w.$]+\([\w$]+\.java:\d+\)|ActiveRecord::|PG::\w+Error|SQLiteException|\bline \d+ of [\w\/.\\-]+\.(?:php|py|rb|js)\b/i;
 
-// A6: признаки скиммеров. Списки IOC — данные кампаний с датой (Sansec 2026-04-07 и 2026-06-04), не вердикт о текущем владельце
+// Skimmer signs. IOC lists are dated campaign data (Sansec 2026-04-07 and 2026-06-04), not a verdict on the current owner
 const PAY_ALLOW = /(?:^|\.)(?:stripe\.com|paypal\.com|braintreegateway\.com|adyen\.com|checkout\.com|worldpay\.com|sberbank\.ru|yookassa\.ru|cloudpayments\.ru|payu\.com|klarna\.com)$/;
 const SKIM_GTM = ['GTM-P6KZMF63', 'GTM-55976FLP', 'GTM-MSDHV3HG', 'GTM-TV4CSHVN'];
 const SKIM_HOSTS = /(?:^|\.)(?:statistics-for-you|statistics-renew|morningflexpleasure|reusable-flex|goingfatter|wellfacing)\.com$/;
@@ -28,7 +28,6 @@ export function auditHtml(html, pageUrl) {
   const add = (title, risk, why, pos, snippet) => out.push({ title, risk, why: [why], line: lineAt(pos), snippet: String(snippet).replace(/\s+/g, ' ').trim().slice(0, 240) });
   let m;
 
-  // Формы
   const FORM = /<form\b[^>]{0,2000}>/gi;
   while ((m = FORM.exec(html))) {
     const action = attr(m[0], 'action');
@@ -44,7 +43,6 @@ export function auditHtml(html, pageUrl) {
     if (TOKEN_NAME.test(name) && value.length >= 8) add('Hidden field with a token: ' + name, 0, 'Check that the token is bound to the session and changes between sessions', m.index, m[0].replace(value, value.slice(0, 4) + '…'));
   }
 
-  // Подключаемые ресурсы: смешанный контент и SRI
   const RES = /<(script|link|iframe|img|source|audio|video|embed|object)\b[^>]{0,2000}>/gi;
   while ((m = RES.exec(html))) {
     const tag = m[1].toLowerCase(), url = attr(m[0], tag === 'link' ? 'href' : tag === 'object' ? 'data' : 'src');
@@ -59,16 +57,14 @@ export function auditHtml(html, pageUrl) {
     if (ext && (tag === 'script' || (tag === 'link' && /stylesheet/.test(rel))) && !attr(m[0], 'integrity')) add('External file without SRI: ' + hostOf(url, pageUrl), 1, 'No integrity attribute: if that host is compromised, its code runs on this site', m.index, m[0]);
   }
 
-  // Ссылки
   const blank = (html.match(/<a\b[^>]{0,2000}target\s*=\s*["']?_blank[^>]{0,2000}>/gi) || []).filter((a) => !/\brel\s*=\s*["']?[^"'\s>]*(?:noopener|noreferrer)/i.test(a));
   if (blank.length) add('Links with target=_blank without rel=noopener: ' + blank.length, 0, 'Old browsers give the opened page access to window.opener (tabnabbing)', html.indexOf(blank[0]), blank[0]);
   const JSURL = /\s(?:href|src|action|formaction)\s*=\s*["']?\s*javascript:/gi;
-  // Все совпадения, а не первое: безобидное javascript:void(0) не должно прятать настоящие
+  // All matches, not the first: a harmless javascript:void(0) must not hide real ones
   for (const x of html.matchAll(JSURL)) if (!/javascript:\s*(?:void\s*\(?0\)?|;)?\s*;?\s*["']/i.test(html.slice(x.index, x.index + 60))) { add('javascript: URLs in markup', 1, 'Script in an attribute: check where its parts come from', x.index, html.slice(x.index, x.index + 160)); break; }
   const inline = html.match(/<[a-z][^>]{0,2000}\son[a-z]+\s*=/gi) || [];
   if (inline.length) add('Inline event handlers: ' + inline.length, 0, 'Handlers in attributes need \'unsafe-inline\' in CSP and make XSS easier to exploit', html.search(/<[a-z][^>]{0,2000}\son[a-z]+\s*=/i), inline[0]);
 
-  // A6: скиммеры на платёжных страницах
   const card = CARD.test(html);
   if (card) {
     add('Card fields on the page', 0, 'The page takes card data: every script on it can read the fields (PCI DSS 6.4.3)', html.search(CARD), html.slice(html.search(CARD), html.search(CARD) + 160));
@@ -91,12 +87,10 @@ export function auditHtml(html, pageUrl) {
   for (const u of html.match(/https?:\/\/[a-z0-9.-]+/gi) || []) { const h = hostOf(u); if (SKIM_HOSTS.test(h)) { add('Known skimmer host: ' + h, 4, 'This host received stolen card data in a 2026 campaign: check every script that mentions it', html.indexOf(u), u); break; } }
 
   for (const f of speculationFindings(html)) add(f.title, f.risk, f.why[0], html.search(/speculationrules/i), 'speculationrules');
-  // Политика Referer в разметке
   if ((m = /<meta\b[^>]{0,2000}name\s*=\s*["']referrer["'][^>]{0,2000}content\s*=\s*["'](unsafe-url|no-referrer-when-downgrade)["']/i.exec(html))) add('Meta referrer tag sends the full address to other sites', 1, 'Full page addresses, with their query parameters, go to every linked site', m.index, m[0]);
   const rp = html.match(/\sreferrerpolicy\s*=\s*["']?unsafe-url/gi) || [];
   if (rp.length) add('Elements with referrerpolicy=unsafe-url: ' + rp.length, 1, 'Full page addresses, with their query parameters, go to every linked site', html.search(/\sreferrerpolicy\s*=\s*["']?unsafe-url/i), rp[0]);
 
-  // Комментарии
   const COMMENT = /<!--([\s\S]*?)-->/g; let nc = 0;
   while ((m = COMMENT.exec(html)) && nc < 30) {
     const body = m[1].trim();
@@ -104,13 +98,11 @@ export function auditHtml(html, pageUrl) {
     nc++; add('HTML comment: ' + body.replace(/\s+/g, ' ').slice(0, 60), 1, 'Comments are sent to every visitor and often mention internal names, paths or plans', m.index, m[0]);
   }
 
-  // Тексты ошибок
   const text = html.replace(/<script\b[\s\S]*?<\/script>|<style\b[\s\S]*?<\/style>/gi, ' ');
   if ((m = ERROR_TEXT.exec(text))) { const p = html.indexOf(m[0]); add('Error or stack trace on the page', 2, 'The page shows an error message: it reveals the backend stack and sometimes paths or queries', p < 0 ? 0 : p, text.slice(Math.max(0, m.index - 40), m.index + 200)); }
   return out;
 }
 
-// Технологии по именам cookies
 const COOKIE_TECH = [[/^PHPSESSID$/, 'PHP'], [/^JSESSIONID$/, 'Java'], [/^(?:ASP\.NET_SessionId|\.ASPXAUTH|\.AspNetCore\.)/, 'ASP.NET'], [/^laravel_session$/, 'Laravel'], [/^csrftoken$|^django_language$/, 'Django'],
   [/^connect\.sid$/, 'Express'], [/^_[\w]+_session$/, 'Ruby on Rails'], [/^(?:cf_clearance|__cf_bm|__cflb)$/, 'Cloudflare'], [/^AWSALB(?:CORS)?$/, 'AWS load balancer'], [/next-auth\./, 'NextAuth.js'], [/^wp-settings|^wordpress_/, 'WordPress'], [/^_shopify_/, 'Shopify'], [/^language$/, null]];
 export function cookieTech(names) {

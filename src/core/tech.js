@@ -1,10 +1,10 @@
-// Стек по глобальным объектам страницы (передаётся window или заглушка в тестах).
+// Stack from page global objects (window or a stub in tests is passed in).
 export function techFromRuntime(w) {
   const out = [], get = (path) => { try { return path.split('.').reduce((o, k) => o[k], w); } catch (e) { return undefined; } };
   const add = (name, v) => { if (v != null) out.push({ name, version: typeof v === 'string' ? v : null }); };
   add('jQuery', get('jQuery.fn.jquery'));
   const us = get('_');
-  // У Underscore только версии 1.x; у Lodash есть runInContext (кроме сборки core) и версии 2+
+  // Underscore has only 1.x versions; Lodash has runInContext (except the core build) and versions 2+
   if (us && typeof us.VERSION === 'string') add(typeof us.runInContext === 'function' || parseInt(us.VERSION, 10) >= 2 ? 'Lodash' : 'Underscore', us.VERSION);
   add('AngularJS', get('angular.version.full'));
   add('Vue', get('Vue.version'));

@@ -58,7 +58,7 @@ test('wasm: Component Model, неизвестный kind, env не toolchain, п
   const bad = parseWasm(new Uint8Array([...hdr, 2, 6, 1, 1, 0x6d, 1, 0x66, 9]));
   assert.equal(bad.truncated, true); assert.equal(bad.imports.length, 0);
   const env = parseWasm(new Uint8Array([...hdr, 2, 7, 1, 1, 0x65, 1, 0x66, 0, 0]));
-  assert.equal(env.imports[0].module, 'e'); // собственный модуль
+  assert.equal(env.imports[0].module, 'e'); // own module
   assert.ok(!wasmFields({ imports: [{ module: 'env', name: 'f' }], exports: [], producers: {}, customs: [], funcNames: [], urls: [] }).some((x) => x[0] === 'Toolchain hint'));
   const data = [...'/usr/lib/x https://a.example/b'].map((c) => c.charCodeAt(0));
   const w = parseWasm(new Uint8Array([...hdr, 11, data.length, ...data]));

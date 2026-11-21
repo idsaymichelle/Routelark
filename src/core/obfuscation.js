@@ -1,5 +1,5 @@
-// F4: признаки обфускации, распаковка packed-eval и расшифровка строк — без выполнения кода.
-// Здесь нет eval, Function и строковых таймеров: только регулярки и ручной разбор (тест проверяет это по тексту модуля).
+// Obfuscation signs, packed-eval unpacking and string decoding, all without executing code.
+// No eval, Function or string timers here: only regexes and manual parsing (a test checks this against the module text).
 export const OBF_LABEL = { hexid: 'identifiers _0x…', array: 'string array', packed: 'packed eval', jsfuck: 'JSFuck', cff: 'control-flow flattening', esc: 'hex and Unicode escapes', b64: 'base64 literal' };
 const PACKED = /eval\(function\(p,a,c,k,e,[dr]\)\{/;
 const count = (re, text, cap) => { let n = 0; re.lastIndex = 0; while (re.exec(text) && n < cap) n++; return n; };
@@ -21,7 +21,7 @@ export function obfuscationScore(text) {
   return { score, level: score >= 4 || strong ? 'obfuscated' : score >= 2 ? 'possible' : null, signals: sig.map(({ id, count: c }) => ({ id, count: c })) };
 }
 
-// Строковый литерал с позиции i (кавычка); возвращает [значение, позиция после кавычки] или null
+// String literal at position i (a quote); returns [value, position after the quote] or null
 function readString(text, i) {
   const q = text[i]; if (q !== "'" && q !== '"') return null;
   let out = '';
@@ -40,7 +40,7 @@ function readString(text, i) {
 const B62 = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
 const token = (c, radix) => { if (radix <= 36) return c.toString(radix); let s = ''; do { s = B62[c % radix] + s; c = Math.floor(c / radix); } while (c); return s; };
 
-// shortcut: замена в один проход; у исходного упаковщика возможна повторная замена, если слово содержит другой токен — доработать по реальному образцу
+// shortcut: single-pass replace; the original packer may replace again if a word contains another token, refine against a real sample
 export function unpackPacked(text, depth = 0) {
   const m = PACKED.exec(text);
   if (!m) return depth ? { text, depth } : null;
@@ -66,7 +66,7 @@ export function decodeEscapes(s) {
     if (x) return String.fromCharCode(parseInt(x, 16));
     if (u) return String.fromCharCode(parseInt(u, 16));
     if (cp) { const v = parseInt(cp, 16); return v <= 0x10ffff ? String.fromCodePoint(v) : all; }
-    return all; // \\ и прочие экранирования не трогаем: \\x41 — это не \x41
+    return all; // \\ and other escapes are left alone: \\x41 is not \x41
   });
 }
 export function decodeB64(s) {

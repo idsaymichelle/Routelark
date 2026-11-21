@@ -1,5 +1,5 @@
-// Локализация: исходный язык английский, русский — словарь точных строк и список шаблонов для строк, собранных ядром на лету.
-// Модуль чистый (без DOM) и в сборщик закладки не попадает: collector.js его не импортирует.
+// Localization: the source language is English; Russian is a dictionary of exact strings plus a list of patterns for strings the core builds on the fly.
+// Pure module (no DOM), not in the bookmarklet bundle: collector.js does not import it.
 let lang = 'en';
 export function setLang(l) { lang = l === 'ru' ? 'ru' : 'en'; }
 export function getLang() { return lang; }
@@ -625,7 +625,6 @@ export const RU = {
   'Images': 'Картинки',
   'check first': 'проверить первым',
   'Private npm packages in the source code': 'Приватные npm-пакеты в исходниках',
-  // Правила риска
   'Admin functions': 'Админ-функции',
   'Spring Actuator endpoint': 'Эндпоинт Spring Actuator',
   'Debug interface': 'Отладочный интерфейс',
@@ -636,7 +635,6 @@ export const RU = {
   'Object ID: check for BOLA/IDOR': 'ID объекта: проверить BOLA/IDOR',
   'Old or test API version': 'Старая или тестовая версия API',
   'Authentication': 'Аутентификация',
-  // Секреты
   'AWS key: check the owner and permissions': 'Ключ AWS: проверить владельца и права',
   'Google keys are often public: check the key restrictions': 'Ключи Google часто публичны: проверить ограничения ключа',
   'GitHub token': 'Токен GitHub',
@@ -667,7 +665,6 @@ export const RU = {
   'JWT, signature not verified': 'JWT, подпись не проверяется',
   'alg=none: unsigned token': 'alg=none: токен без подписи',
   'no exp: never expires': 'нет exp: не истекает',
-  // Стек и заголовки
   'AngularJS is unsupported since 2022-01': 'AngularJS не поддерживается с 2022-01',
   'Vue 2 is unsupported since 2023-12-31': 'Vue 2 не поддерживается с 2023-12-31',
   'Bootstrap 3 is unsupported since 2019': 'Bootstrap 3 не поддерживается с 2019',
@@ -691,7 +688,6 @@ export const RU = {
   'CORS: * with credentials': 'CORS: * вместе с credentials',
   'Dangerous combination': 'Опасная комбинация',
   'Reveals the implementation': 'Раскрывает реализацию',
-  // Код
   "message handler uses a weak origin check": "Обработчик message с нестрогой проверкой origin",
   "postMessage to any origin ('*')": "postMessage на любой origin ('*')",
   "Recursive merge with user-shaped keys": "Рекурсивное слияние с ключами из пользовательских данных",
@@ -721,7 +717,6 @@ export const RU = {
   'Contact in code: possibly a developer address or a service mailbox': 'Контакт в коде: возможный адрес разработчика или служебный ящик',
   'A leftover note may point to unfinished work': 'Оставленная заметка может указывать на недоделку',
   'Custom rule': 'Своё правило',
-  // Cookies
   'Time': 'Время',
   'Looks like a session cookie and is readable from JS (no HttpOnly): XSS can steal it': 'Похожа на сессионную и доступна из JS (нет HttpOnly): XSS может её украсть',
   'No Secure flag on https': 'Нет флага Secure на https',
@@ -729,7 +724,6 @@ export const RU = {
   'Session cookie without an explicit SameSite': 'Сессионная без явного SameSite',
   'Lives longer than 400 days': 'Живёт дольше 400 дней',
   'Larger than 4 KB': 'Больше 4 КБ',
-  // Статусы, ошибки, источники
   'waiting for page data': 'жду данные страницы',
   'scanning': 'сканирую',
   'stopped': 'остановлено',
@@ -758,7 +752,6 @@ export const RU = {
   'Cloudflare challenge': 'проверка Cloudflare',
   'WAF challenge page': 'страница проверки WAF',
   'Not a Routelark session file': 'Это не файл сессии Routelark',
-  // Уровни
   'info': 'инфо',
   'low': 'низкий',
   'medium': 'средний',
@@ -767,7 +760,6 @@ export const RU = {
   'Low': 'Низкая',
   'Medium': 'Средняя',
   'High': 'Высокая',
-  // Шапка и разделы
   'Overview': 'Обзор',
   'Admin and docs': 'Админка и доки',
   'Secrets': 'Секреты',
@@ -786,7 +778,6 @@ export const RU = {
   'Settings': 'Настройки',
   'Sections': 'Разделы',
   'Switch language': 'Сменить язык',
-  // Список находок и подробности
   'new': 'новое',
   'Details': 'Подробности',
   'Address': 'Адрес',
@@ -816,7 +807,6 @@ export const RU = {
   'Risk': 'Риск',
   'Count': 'Сколько раз',
   'Where': 'Где',
-  // Обзор
   'Site': 'Сайт',
   'File': 'Файл',
   'offline analysis, no network': 'офлайн-анализ, без сети',
@@ -828,7 +818,6 @@ export const RU = {
   'Check first': 'Проверить первыми',
   'Scan in progress': 'Скан идёт',
   'No priority findings': 'Приоритетных находок нет',
-  // Отчёт и экспорт
   'Could not build: {error}': 'Не удалось собрать: {error}',
   'Reports': 'Отчёты',
   'Data': 'Данные',
@@ -875,7 +864,6 @@ export const RU = {
   'Documentation': 'Документация',
   'Auth': 'Вход',
   'Static': 'Статика',
-  // Настройки
   'System': 'Как в системе',
   'Light': 'Светлая',
   'Dark': 'Тёмная',
@@ -913,7 +901,6 @@ export const RU = {
   'Load rules': 'Загрузить правила',
   'Download current': 'Скачать текущие',
   'Remove rules': 'Убрать правила',
-  // Cookies
   'Undone': 'Отменено',
   'Saved': 'Сохранено',
   'Created': 'Создано',
@@ -964,19 +951,17 @@ export const RU = {
   'Could not parse the text': 'Не удалось разобрать текст',
   'Apply': 'Применить',
   'The import contains session cookies. Your current session on the site may change. Continue?': 'В импорте есть сессионные cookies. Текущая сессия на сайте может смениться. Продолжить?',
-  // Storage и заголовки
   'Storage is empty': 'Хранилище пустое',
   'No header issues found': 'Проблем в заголовках не найдено',
   'Headers were not read: no-requests mode is on or this is not an HTML page': 'Заголовки не читались: включён режим без запросов или это не HTML-страница',
   'All document headers': 'Все заголовки документа',
-  // Главная
   'No findings in this data': 'В этих данных ничего не нашлось',
   'Bookmarklet': 'Закладка',
   'Open the test page': 'Открыть тестовую страницу',
 };
 
-// Строки, которые ядро собирает из частей (имя параметра, адрес, версия). Первое совпадение выигрывает.
-// Замена — строка с $1.. или функция (m) => строка, если внутри нужно перевести вложенный текст.
+// Strings the core builds from parts (parameter name, address, version). First match wins.
+// Replacement is a $1.. string or a (m) => string function when nested text needs translating.
 export const RU_PATTERNS = [
   [/^^Source map without sourcesContent: (\d+) sources not analysed$$/, "Source map без sourcesContent: не разобрано исходников: $1"],
   [/^^security\.txt expired: (.+)$$/, "security.txt истёк: $1"],
@@ -1114,7 +1099,7 @@ export const RU_PATTERNS = [
   [/^Could not parse: ([\s\S]*)$/, 'Не удалось разобрать: $1']
 ];
 
-// Формы множественного числа: en — [one, other], ru — [one, few, many]
+// Plural forms: en - [one, other], ru - [one, few, many]
 export const PL = {
   finding: { en: ['finding', 'findings'], ru: ['находка', 'находки', 'находок'] },
   file: { en: ['file scanned', 'files scanned'], ru: ['файл прочитан', 'файла прочитано', 'файлов прочитано'] }
@@ -1142,5 +1127,5 @@ export function plural(n, forms) {
   return n + ' ' + (f[formIndex(n)] || f[f.length - 1]);
 }
 
-// Метки источника вроде «(page)»: перевод только по точному совпадению. Имена файлов и ключи сайта не трогаем.
+// Source labels like "(page)": translated by exact match only. File names and site keys are left alone.
 export const tLabel = (s) => (s && s[0] === '(' ? t(s) : s);

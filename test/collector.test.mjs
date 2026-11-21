@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createCollector } from '../src/collector.js';
 
 const PAGE = 'https://app.example.org/page';
-// Вкладка Routelark — about:blank, открытая страницей: у неё тот же origin, что у страницы
+// The Routelark tab is about:blank opened by the page, so it has the same origin as the page
 const APP_ORIGIN = 'https://app.example.org';
 
 function env(opts = {}) {
@@ -32,7 +32,7 @@ test('hello → снимок страницы уходит только на ori
 
 test('сообщение с чужого origin игнорируется', async () => {
   const e = env(); e.c.start(); e.send({ type: 'hello' }, 'https://evil.org'); e.send({ type: 'fetch', id: 1, url: 'https://app.example.org/app.js' }, 'https://evil.org'); await e.c.idle();
-  assert.equal(e.sent.length, 0); // чужому origin ничего не отвечаем
+  assert.equal(e.sent.length, 0); // no reply to a foreign origin
   assert.equal(e.net.length, 0);
 });
 
@@ -90,7 +90,7 @@ test('снимок: только читаемые фреймы своего orig
   assert.deepEqual(e.replies('snapshot')[0].page.frames, [{ url: 'https://app.example.org/widget', html: '<html>w</html>', scripts: ['https://app.example.org/w.js'] }]);
 });
 
-// Банка cookies как в браузере: cookie с domain= и без хранятся отдельно, document.cookie показывает обе
+// Cookie jar like the browser: cookies with and without domain= are stored separately, document.cookie shows both
 function jarEnv(initial) {
   const e = env(), jar = new Map(initial.map((c) => [c.name + '|' + (c.domain || ''), c]));
   Object.defineProperty(e.doc, 'cookie', {
