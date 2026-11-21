@@ -1,25 +1,24 @@
 // node build.mjs → dist/routelark.html: один файл. Открыть его (хоть с диска) и перетащить кнопку на панель закладок.
 // Закладка самодостаточна: внутри весь интерфейс и анализ. Серверов и хостинга не нужно.
 // Для разработки в dist/ также лежат demo.html и demo/ (тестовая страница для npm run serve) и bookmarklet.txt.
-// esbuild берётся из node_modules (npm install) или из переменной ESBUILD=/путь/к/esbuild.
-import { execFileSync } from 'node:child_process';
+// esbuild вызывается через JS API: закладка (~700 КБ) идёт в define, а в командной строке Linux такой аргумент не пролезает (E2BIG)
+import { buildSync } from 'esbuild';
 import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 
 // Chrome хранит закладки до ~2 МБ; Firefox обрезает длиннее 64 КБ и поэтому не поддерживается
 const LIMIT = 1.5e6;
-const bin = process.env.ESBUILD || 'node_modules/.bin/esbuild';
-const common = ['--bundle', '--minify', '--charset=utf8', '--target=es2020', '--legal-comments=none'];
-const esbuild = (args) => execFileSync(bin, args.concat(common), { encoding: 'utf8', maxBuffer: 64e6, stdio: ['ignore', 'pipe', 'inherit'] }).trim();
+const common = { bundle: true, minify: true, charset: 'utf8', target: 'es2020', legalComments: 'none', write: false, logLevel: 'error' };
+const esbuild = (entry, o) => buildSync(Object.assign({ entryPoints: [entry] }, common, o)).outputFiles[0].text.trim();
 
 rmSync('dist', { recursive: true, force: true });
 mkdirSync('dist', { recursive: true });
 cpSync('site', 'dist', { recursive: true });
 
-const css = esbuild(['site/app.css', '--loader:.css=css']);
+const css = esbuild('site/app.css');
 const icon = 'data:image/png;base64,' + readFileSync('site/icon.png').toString('base64'); // значок вкладки, встроен в файл
 // Интерфейс внутри закладки: window, document и хранилища подменяются на вкладку Routelark (см. src/bookmarklet.js)
-const inner = esbuild(['src/app/main.js', '--format=iife', '--define:RL_BOOKMARKLET=""']);
-const loader = esbuild(['src/bookmarklet.js', '--format=iife', '--define:RL_CSS=' + JSON.stringify(css), '--define:RL_ICON=' + JSON.stringify(icon)]);
+const inner = esbuild('src/app/main.js', { format: 'iife', define: { RL_BOOKMARKLET: '""' } });
+const loader = esbuild('src/bookmarklet.js', { format: 'iife', define: { RL_CSS: JSON.stringify(css), RL_ICON: JSON.stringify(icon) } });
 const code = '(()=>{var RL_RUN=function(window,document,location,history,localStorage,sessionStorage,setTimeout,clearTimeout){' + inner + '};' + loader + '})();';
 // Lookbehind в регулярках Safari понимает только с 16.4: одна такая регулярка ломает всю закладку
 if (/\(\?<[=!]/.test(code)) throw new Error('lookbehind (?<= or (?<! in code: Safari before 16.4 fails to parse it');
@@ -31,7 +30,7 @@ if (bookmarklet.length > LIMIT) throw new Error('bookmarklet is ' + bookmarklet.
 writeFileSync('dist/bookmarklet.txt', bookmarklet);
 
 // Страница установки: стили и код встроены, внешних файлов нет. «</script» внутри кода экранируется
-const home = esbuild(['src/app/main.js', '--format=iife', '--define:RL_BOOKMARKLET=' + JSON.stringify(bookmarklet)]).replace(/<\/script/gi, '<\\/script').replace(/<!--/g, '<\\!--');
+const home = esbuild('src/app/main.js', { format: 'iife', define: { RL_BOOKMARKLET: JSON.stringify(bookmarklet) } }).replace(/<\/script/gi, '<\\/script').replace(/<!--/g, '<\\!--');
 const html = readFileSync('site/index.html', 'utf8')
   .replace('<link rel="stylesheet" href="app.css">', () => '<style>' + css + '</style>')
   .replace('<link rel="icon" href="icon.png">', () => '<link rel="icon" href="' + icon + '">')
