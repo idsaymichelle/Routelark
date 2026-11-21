@@ -1,0 +1,36 @@
+name: Bug report
+description: Something works wrongly or not at all
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Do not paste real secrets, cookies or private URLs. Replace them with placeholders.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, what you got.
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and version
+      placeholder: Chrome 131, Edge 131, Safari 18.2
+    validations:
+      required: true
+  - type: dropdown
+    id: how
+    attributes:
+      label: How Routelark was started
+      options:
+        - Bookmarklet
+        - Code pasted into the console
+        - Offline file analysis
+    validations:
+      required: true
+  - type: textarea
+    id: console
+    attributes:
+      label: Errors from the browser console
+      render: text

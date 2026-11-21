@@ -1,0 +1,4 @@
+{"openapi":"3.0.3","info":{"title":"Shop API","version":"2.1.0"},"servers":[{"url":"/api/v2"}],"paths":{
+"/users/{id}":{"get":{"summary":"Profile","parameters":[{"name":"id","in":"path"}]},"patch":{"summary":"Update profile","parameters":[{"name":"id","in":"path"},{"name":"isAdmin","in":"query"}]}},
+"/payments/{paymentId}/refund":{"post":{"summary":"Refund","parameters":[{"name":"paymentId","in":"path"},{"name":"amount","in":"query"}]}},
+"/files":{"get":{"summary":"Download file","parameters":[{"name":"path","in":"query"}]}}}}

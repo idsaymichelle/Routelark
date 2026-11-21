@@ -1,0 +1,29 @@
+name: Wrong or missing finding
+description: A false positive, or something Routelark should have found
+labels: [detection]
+body:
+  - type: markdown
+    attributes:
+      value: A small code sample is the fastest way to a fix. Replace real secrets and hosts with placeholders of the same shape.
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind
+      options:
+        - False positive
+        - Missed finding
+    validations:
+      required: true
+  - type: textarea
+    id: sample
+    attributes:
+      label: Minimal code or text that shows it
+      render: javascript
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What Routelark should show
+    validations:
+      required: true

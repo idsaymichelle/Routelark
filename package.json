@@ -1,0 +1,29 @@
+{
+  "name": "routelark",
+  "version": "1.0.0",
+  "description": "Recon bookmarklet: API endpoints, secrets and stack from a page's JavaScript",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "build": "node build.mjs",
+    "serve": "node test/site/server.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "keywords": [
+    "bookmarklet",
+    "recon",
+    "bug-bounty",
+    "pentest",
+    "endpoints",
+    "secrets",
+    "source-maps",
+    "security"
+  ]
+}

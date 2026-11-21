@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Routelark: test page</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div class="home">
+<div class="homebar"><span class="grow"></span><button class="btn lang" id="lang" type="button">RU</button></div>
+<h1 data-ru="Тестовая страница">Test page</h1>
+<p class="lead" data-ru="Пример магазина с заранее известными находками. Нажмите закладку Routelark на этой странице">A sample shop with known findings. Click the Routelark bookmarklet on this page</p>
+<div class="stack">
+<section class="card" lang="en"><h2>What should be found</h2>
+<ul>
+<li>API: <span class="mono">DELETE /api/v2/users/{id}</span>, <span class="mono">POST /api/v2/orders</span> with the parameters <span class="mono">price</span> and <span class="mono">role</span>, endpoints from OpenAPI</li>
+<li>Admin panel <span class="mono">/admin/users</span> and internal <span class="mono">/internal/metrics</span></li>
+<li>Secrets: an AWS key in a source map, a JWT in localStorage</li>
+<li>Cloud: an S3 bucket</li>
+<li>Stack: jQuery 3.4.1 with known vulnerabilities</li>
+<li>Code: innerHTML from the page URL, a message handler without an origin check</li>
+<li>Cookies: <span class="mono">sid</span> without Secure, <span class="mono">theme</span></li>
+<li>HTML: a comment about a debug link, a form that posts to another site, a hidden token, a link with <span class="mono">target=_blank</span></li>
+</ul></section>
+<section class="card" lang="ru" hidden><h2>Что должно найтись</h2>
+<ul>
+<li>API: <span class="mono">DELETE /api/v2/users/{id}</span>, <span class="mono">POST /api/v2/orders</span> с параметрами <span class="mono">price</span> и <span class="mono">role</span>, эндпоинты из OpenAPI</li>
+<li>Админка <span class="mono">/admin/users</span> и внутренний <span class="mono">/internal/metrics</span></li>
+<li>Секреты: ключ AWS в source map, JWT в localStorage</li>
+<li>Облако: бакет S3</li>
+<li>Стек: jQuery 3.4.1 с известными уязвимостями</li>
+<li>Код: innerHTML из адреса страницы, обработчик message без проверки origin</li>
+<li>Cookies: <span class="mono">sid</span> без Secure, <span class="mono">theme</span></li>
+<li>HTML: комментарий про отладочную ссылку, форма, которая отправляет данные на другой сайт, скрытый токен, ссылка с <span class="mono">target=_blank</span></li>
+</ul></section>
+</div>
+<!-- TODO: remove the debug link to /internal/metrics before release -->
+<section class="card"><h2 data-ru="Пример формы для проверок HTML">Sample form for the HTML checks</h2>
+<p data-ru="Форма специально отправляет данные на другой сайт и содержит скрытый токен: Routelark должен это заметить. Форма никуда не отправляется">The form posts to another site on purpose and holds a hidden token, so Routelark has something to report. It is never sent</p>
+<form action="https://forms.example.net/subscribe" method="post" onsubmit="return false"><input type="hidden" name="csrf_token" value="d3m0-t0k3n-9f8e7d6c5b4a"><div class="acts"><input class="in" name="email" placeholder="you@example.com"><button class="btn" type="submit" data-ru="Подписаться">Subscribe</button><a href="https://example.com/terms" target="_blank" data-ru="Условия">Terms</a></div></form></section>
+<section class="card"><h2 data-ru="Живой трафик">Live traffic</h2><p data-ru="Кнопка делает запрос к API этой страницы. Он появится в Routelark, пока открыты обе вкладки">The button makes a request to this page's API. It shows up in Routelark while both tabs are open</p>
+<div class="acts"><button class="btn" id="ping" type="button" data-ru="Сделать запрос">Make a request</button><span class="muted" id="out"></span></div></section>
+<p class="muted foot"><a href="./" data-ru="Назад на главную Routelark">Back to Routelark home</a></p>
+</div>
+<script src="demo/lang.js"></script>
+<script src="demo/vendor/jquery-3.4.1.js"></script>
+<script src="demo/app.js"></script>
+</body>
+</html>

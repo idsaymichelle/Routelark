@@ -1,0 +1,70 @@
+// Что можно запрашивать. Общий модуль для сборщика (на странице) и вкладки: правила одни.
+// Целые части пути, а не подстроки: /assets/deleteModal.js — обычный файл, /account/delete — действие
+// Путь с адресом выхода/удаления? Раскодируется до 3 раз: %256Cogout → %6Cogout → logout. Одно правило для всех проверок
+export function deniedPath(path) {
+  for (let i = 0; i < 3; i++) { try { const d = decodeURIComponent(path); if (d === path) break; path = d; } catch (e) { break; } }
+  return DEFAULT_DENY.test(path);
+}
+export const DEFAULT_DENY = /(?:^|[\/._?&=-])(?:log-?out|sign-?out|log_out|sign_out|deactivate|unsubscribe|terminate|erase|delete|remove|destroy|revoke)(?:$|[\/._?&=-])/i;
+// Скачиваются только JS, source maps, манифесты и спецификации OpenAPI. Адреса API никогда.
+export const FETCHABLE = /\.(?:m?js|map|webmanifest)$|\.LICENSE\.txt$|(?:^|\/)(?:asset-manifest|build-manifest|manifest)\.json$|(?:openapi|swagger|api-docs)[\w.-]*\.(?:json|ya?ml)$/i;
+// Служебные файлы, которые берутся только по прямому указанию (robots, sitemap, security.txt)
+// Виды находок-адресов: один список для экспорта, скоупа программы, правил скрытия, карты и соответствия стандартам
+export const ROUTE_KINDS = new Set(['api', 'ws', 'auth', 'debug', 'docs', 'page', 'external']);
+export const FORCEABLE = /(?:^|\/)(?:robots|security)\.txt$|(?:^|\/)sitemap[\w.-]*\.xml$|^\/(?:\.well-known\/(?:openid-configuration|oauth-authorization-server|apple-app-site-association|assetlinks\.json|webauthn)|ads\.txt|humans\.txt|llms\.txt)$/i;
+
+const hostOf = (u) => { try { return new URL(u).host; } catch (e) { return ''; } };
+const SHARED = /\.(?:github\.io|gitlab\.io|vercel\.app|netlify\.app|herokuapp\.com|pages\.dev|workers\.dev|web\.app|firebaseapp\.com|appspot\.com|azurewebsites\.net|cloudfront\.net|amazonaws\.com|onrender\.com|fly\.dev|blogspot\.com|wordpress\.com|myshopify\.com|notion\.site|wixsite\.com|webflow\.io|glitch\.me|repl\.co|replit\.dev|surge\.sh|ngrok\.io|ngrok-free\.app|bitbucket\.io|neocities\.org|hashnode\.dev|lovable\.app|hf\.space|substack\.com|tumblr\.com|framer\.website|github\.dev|codesandbox\.io|stackblitz\.io|deno\.dev|railway\.app|up\.railway\.app|azurestaticapps\.net|cloudfunctions\.net|run\.app|r2\.dev|supabase\.co)$/;
+const SLD = new Set(['co', 'com', 'net', 'org', 'gov', 'edu', 'ac', 'or', 'ne', 'go', 'ltd', 'plc', 'me', 'nhs', 'sch', 'mil', 'nom', 'gen', 'biz', 'info', 'int']);
+// shortcut: без Public Suffix List; домены вида x.github.io считаются одним сайтом с github.io — для точности подключить PSL
+export function siteOf(host) {
+  host = String(host).toLowerCase().replace(/:\d+$/, '').replace(/\.$/, '');
+  if (/^[\d.]+$/.test(host) || host.includes(':') || !host.includes('.')) return host;
+  if (SHARED.test(host)) return host; // общий хостинг: соседние поддомены принадлежат другим людям
+  const p = host.split('.');
+  const n = p.length > 2 && SLD.has(p[p.length - 2]) && p[p.length - 1].length === 2 ? 3 : 2;
+  return p.slice(-n).join('.');
+}
+function hostMatch(p, h) { p = p.toLowerCase(); h = h.toLowerCase(); return p.startsWith('*.') ? (h === p.slice(2) || h.endsWith(p.slice(1))) : p === h; }
+
+export function makeScope(o) {
+  const pageHost = hostOf(o.pageUrl || ''), site = siteOf(pageHost), allow = o.allowHosts || [], deny = o.denyHosts || [];
+  return {
+    check(url, force) {
+      let u; try { u = new URL(url); } catch (e) { return { ok: false, reason: 'bad-url' }; }
+      if (!/^https?:$/.test(u.protocol)) return { ok: false, reason: 'protocol' };
+      if (o.self && u.href.split('#')[0] === o.self) return { ok: false, reason: 'self' };
+      const h = u.hostname.replace(/\.$/, '');
+      if (deny.some((p) => hostMatch(p, u.host) || hostMatch(p, h))) return { ok: false, reason: 'deny-host' };
+      const own = u.host === pageHost || h === site || h.endsWith('.' + site);
+      const listed = allow.some((p) => hostMatch(p, u.host) || hostMatch(p, h));
+      if (!own && !listed && !o.fetchExternal) return { ok: false, reason: 'external-host' };
+      if (deniedPath(u.pathname + u.search)) return { ok: false, reason: 'deny-path' };
+      if (!FETCHABLE.test(u.pathname) && !(force && FORCEABLE.test(u.pathname))) return { ok: false, reason: 'not-js' };
+      return { ok: true };
+    }
+  };
+}
+
+// Ответ похож на страницу проверки WAF или лимит. Обычные 403/404 и слова в JS не считаются.
+export function blockedReason(r) {
+  const h = r.headers || {};
+  if (r.status === 429) return 'rate limit (429)';
+  if (h['cf-mitigated'] === 'challenge') return 'Cloudflare challenge';
+  const html = /text\/html/i.test(h['content-type'] || '');
+  if (html && (r.status === 403 || r.status === 503) && /cf-chl|challenge-platform|_Incapsula_Resource|captcha-delivery|awswaf/i.test(r.text || '')) return 'WAF challenge page';
+  return null;
+}
+
+const num = (v, d, lo, hi) => { v = Number(v); return Math.min(hi, Math.max(lo, Number.isFinite(v) ? v : d)); };
+// Настройки приходят из вкладки; сборщик всё равно зажимает их в жёсткие пределы
+export function clampSettings(s) {
+  s = s || {};
+  return {
+    delay: num(s.delay, 500, 300, 2000),
+    budget: num(s.budget, 400, 1, 2000),
+    depth: num(s.depth, 3, 1, 4),
+    cookies: s.cookies === true,
+    allowHosts: Array.isArray(s.allowHosts) ? s.allowHosts.filter((x) => typeof x === 'string' && /^[\w*.-]+(?::\d+)?$/.test(x) && !/^\*(?:\.[^.:]*)?(?::\d+)?$/.test(x)).slice(0, 50) : []
+  };
+}
