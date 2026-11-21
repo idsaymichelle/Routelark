@@ -5,6 +5,24 @@ export function setLang(l) { lang = l === 'ru' ? 'ru' : 'en'; }
 export function getLang() { return lang; }
 
 export const RU = {
+  "{n} static findings are not listed in this report": "Статических находок не показано в отчёте: {n}",
+  "the file is too large to read here": "файл слишком большой, чтобы прочитать его здесь",
+  "the text limit of this scan is used up": "лимит текста для этого скана исчерпан",
+  "third-party host outside the scan scope": "сторонний хост вне скоупа скана",
+  "Download failed: {error}": "Не удалось скачать: {error}",
+  "Text and XML": "Текст и XML",
+  "Fonts": "Шрифты",
+  "Audio and video": "Аудио и видео",
+  "Load file": "Загрузить файл",
+  "Loading the file…": "Загружаю файл…",
+  "Third-party host: outside the scan scope. Add it in Settings to load it": "Сторонний хост: вне скоупа скана. Добавьте его в Настройках, чтобы загрузить",
+  "The address looks like logout or delete: Routelark never requests it": "Адрес похож на выход или удаление: Routelark его никогда не запрашивает",
+  "The request budget was used up before this file": "Лимит запросов закончился раньше, чем дошла очередь до этого файла",
+  "The size or time limit was reached before this file": "Лимит объёма или времени закончился раньше, чем дошла очередь до этого файла",
+  "An API response the page loaded itself: Routelark never repeats API calls": "Ответ API, который страница загрузила сама: Routelark никогда не повторяет вызовы API",
+  "Quiet mode downloads nothing. Switch to Full scan, or load just this file": "Тихий режим ничего не скачивает. Включите полный скан или загрузите только этот файл",
+  "Routelark does not download this file type on its own": "Routelark сам не скачивает файлы этого типа",
+  "the address looks like logout or delete": "адрес похож на выход или удаление",
   "waiting for the other scan to finish": "ждёт окончания другого скана",
   "Scan mode": "Режим скана",
   "Quiet": "Тихий",
@@ -963,9 +981,9 @@ export const RU = {
 // Strings the core builds from parts (parameter name, address, version). First match wins.
 // Replacement is a $1.. string or a (m) => string function when nested text needs translating.
 export const RU_PATTERNS = [
-  [/^^Source map without sourcesContent: (\d+) sources not analysed$$/, "Source map без sourcesContent: не разобрано исходников: $1"],
-  [/^^security\.txt expired: (.+)$$/, "security.txt истёк: $1"],
-  [/^^(\d+) static findings are not listed in this report$$/, "Статических находок не показано в отчёте: $1"],
+  [/^Source map without sourcesContent: (\d+) sources not analysed$/, "Source map без sourcesContent: не разобрано исходников: $1"],
+  [/^security\.txt expired: (.+)$/, "security.txt истёк: $1"],
+  [/^(\d+) static findings are not listed in this report$/, "Статических находок не показано в отчёте: $1"],
   [/^HTML checked for the current view only: (.+)$/, "HTML проверен только для текущего экрана: $1"],
   [/^Value of the field "(.+)"$/, "Значение поля «$1»"],
   [/^Service worker: (.+)$/, "Service worker: $1"],

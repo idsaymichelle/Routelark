@@ -2,13 +2,14 @@
 // Shows only what was already downloaded under scan rules or loaded by the page itself. Requests only via the "Read metadata" button.
 import { unpackPacked, decodeLiterals } from '../../core/obfuscation.js';
 import { h, button, copy, copyIcon, download, openInTab } from './dom.js';
-import { fileType, displayText, displayPosition, searchTexts } from '../../core.js';
+import { fileType, displayText, displayPosition, searchTexts, analyzeInto, makeScope } from '../../core.js';
+import { deniedPath } from '../../core/scope.js';
 import { fileMeta } from '../../core/meta.js';
 import { officeMeta, fontMeta } from '../../core/office.js';
 import { t } from '../../i18n.js';
 
 const WINDOW = 1000, LONG = 3000;
-const TYPES = [['', 'All types'], ['js', 'JavaScript'], ['source', 'Original sources'], ['json', 'JSON'], ['html', 'HTML'], ['css', 'CSS'], ['map', 'Source maps'], ['image', 'Images'], ['other', 'Other']];
+const TYPES = [['', 'All types'], ['js', 'JavaScript'], ['source', 'Original sources'], ['json', 'JSON'], ['html', 'HTML'], ['css', 'CSS'], ['map', 'Source maps'], ['image', 'Images'], ['text', 'Text and XML'], ['font', 'Fonts'], ['media', 'Audio and video'], ['other', 'Other']];
 const size = (n) => (n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : n >= 1024 ? (n / 1024).toFixed(1) + ' KB' : n + ' B');
 
 // All files: downloaded (with text) and other page resources (Resource Timing info only)
@@ -39,7 +40,7 @@ function place(f) {
   try { const u = new URL(f.url), i = u.pathname.lastIndexOf('/'); return { group: u.host + u.pathname.slice(0, i + 1), name: (u.pathname.slice(i + 1) || '/') + u.search }; } catch (e) { return { group: '', name: f.url }; }
 }
 // SVG has type xml in the core, but to a human it is an image: it goes into the "Images" filter
-const kindOf = (f) => (f.source ? 'source' : f.type === 'xml' && /\.svg(?:$|[?#])/i.test(f.url) ? 'image' : f.type);
+const kindOf = (f) => (f.source ? 'source' : f.type === 'xml' ? (/\.svg(?:$|[?#])/i.test(f.url) ? 'image' : 'text') : f.type);
 function disp(store, f, raw) {
   if (raw || f.text == null) return f.text;
   const c = store._disp || (store._disp = new Map());
@@ -70,16 +71,75 @@ function searchAsync(texts, q, o) {
   });
 }
 
+// Why a file has no text, in the user's words
+const TEXTY = /^(?:js|map|json|html|css|xml|text)$/;
+const SKIP = { 'external-host': 'Third-party host: outside the scan scope. Add it in Settings to load it', 'deny-path': 'The address looks like logout or delete: Routelark never requests it', budget: 'The request budget was used up before this file', limit: 'The size or time limit was reached before this file' };
+function whyMissing(app, store, f) {
+  if (/fetch|xmlhttprequest|beacon/.test(f.initiator || '')) return t('An API response the page loaded itself: Routelark never repeats API calls');
+  const sc = scopeCheck(app, store, f.url);
+  if (!sc.ok && SKIP[sc.reason]) return t(SKIP[sc.reason]);
+  if (app.mode !== 'full' && TEXTY.test(f.type)) return t('Quiet mode downloads nothing. Switch to Full scan, or load just this file');
+  const s = store.skipped.find((x) => x.url === f.url) || store.errors.find((x) => x.url === f.url && SKIP[x.error]);
+  if (s) return t(SKIP[s.reason || s.error] || 'Routelark does not download this file type on its own');
+  const cut = app.mode === 'full' && /^(?:js|map)$/.test(f.type) && store.errors.find((x) => x.error === 'budget' || x.error === 'limit');
+  if (cut) return t(SKIP[cut.error]); // the crawl stops at the first budget/limit error, so later files have no entry of their own
+  const e = store.errors.find((x) => x.url === f.url);
+  if (e) return t('Download failed: {error}', { error: e.status ? 'HTTP ' + e.status : String(e.error || '') });
+  return t('Routelark does not download this file type on its own');
+}
+// One GET on click, under the scan's scope rules: own site or added hosts, never logout/delete paths
+// 15 s timeout so a hanging server does not leave "Loading…" forever; AbortSignal.timeout exists from Safari 16
+const tmo = () => (typeof AbortSignal !== 'undefined' && AbortSignal.timeout ? AbortSignal.timeout(15000) : undefined);
+const scopeCheck = (app, store, url) => makeScope({ pageUrl: store.pageUrl, allowHosts: app.settings.allowHosts || [] }).check(url, true);
+function canLoad(app, store, f) { const r = scopeCheck(app, store, f.url); return r.ok || r.reason === 'not-js'; }
+// Reads at most max bytes: without Content-Length r.text() would pull the whole body into memory first
+async function readCapped(r, max) {
+  const big = () => new Error('the file is too large to read here');
+  if (!r.body || !r.body.getReader) { const b = new Uint8Array(await r.arrayBuffer()); if (b.length > max) throw big(); return b; }
+  const rd = r.body.getReader(), parts = []; let n = 0;
+  for (;;) { const { value, done } = await rd.read(); if (done) break; n += value.byteLength; if (n > max) { rd.cancel().catch(() => {}); throw big(); } parts.push(value); }
+  const out = new Uint8Array(n); let o = 0; for (const p of parts) { out.set(p, o); o += p.byteLength; }
+  return out;
+}
+const LOADS = new Map();
+async function loadText(f, ctx) {
+  const { store, actions } = ctx;
+  if ((LOADS.get(f.url) || {}).loading || store.texts.has(f.url)) return; // a stale button after the first load must not request again
+  LOADS.set(f.url, { loading: true }); actions.render();
+  try {
+    const r = await fetch(f.url, { credentials: 'same-origin', redirect: 'error', signal: tmo() });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    if ((+r.headers.get('content-length') || 0) > 5e6) throw new Error('the file is too large to read here');
+    const text = new TextDecoder().decode(await readCapped(r, 5e6));
+    if (store.texts.has(f.url)) { LOADS.delete(f.url); return actions.render(); }
+    store.addText(f.url, text, r.headers.get('content-type') || '');
+    if (!store.texts.has(f.url)) throw new Error('the text limit of this scan is used up');
+    analyzeInto(store, text, f.url); // analysed like a scanned file: its findings appear in the sections
+    LOADS.delete(f.url); store.notify();
+  } catch (e) { LOADS.set(f.url, { error: String(e && e.message || e) }); }
+  actions.render();
+}
+
 // Metadata: images are read only on button click (one GET of the same file the page already loaded)
-const META = new Map();
-async function readMeta(f, actions) {
+const META = new Map(), FACES = new Map(); let faceSeq = 0;
+async function readMeta(f, ctx) {
+  const { actions } = ctx;
   META.set(f.url, { loading: true }); actions.render();
   try {
-    const r = await fetch(f.url, { credentials: 'same-origin', redirect: 'error' });
-    const buf = await r.arrayBuffer(), bytes = new Uint8Array(buf);
+    const u = new URL(f.url); if (deniedPath(u.pathname + u.search)) throw new Error('the address looks like logout or delete');
+    if (!canLoad(ctx.app, ctx.store, f)) throw new Error('third-party host outside the scan scope');
+    const r = await fetch(f.url, { credentials: 'same-origin', redirect: 'error', signal: tmo() });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const bytes = await readCapped(r, 20e6), buf = bytes.buffer;
     const m = (bytes[0] === 0x50 && bytes[1] === 0x4b && await officeMeta(bytes)) || fontMeta(bytes) || fileMeta(bytes);
     if (!m.paths) m.paths = Array.from(new Set(m.fields.flatMap(([, v]) => String(v).match(/[A-Za-z]:\\(?:Users|Documents and Settings)\\[^\\\s"]+|\/(?:Users|home)\/[^/\s"]+/g) || [])));
     let hash = ''; try { hash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', buf)), (x) => x.toString(16).padStart(2, '0')).join(''); } catch (e) { /* no crypto.subtle */ }
+    // Font sample from the bytes already read: no extra request
+    if (f.type === 'font' || /font/i.test(m.format || '')) try {
+      const ff = new FontFace('rl-preview-' + (++faceSeq), buf); await ff.load();
+      if (FACES.has(f.url)) document.fonts.delete(FACES.get(f.url)); // one preview face per file
+      document.fonts.add(ff); FACES.set(f.url, ff); m.preview = ff.family;
+    } catch (e) { /* not a font the browser can load */ }
     META.set(f.url, Object.assign(m, { bytes: buf.byteLength, type: r.headers.get('content-type') || '', modified: r.headers.get('last-modified') || '', hash }));
   } catch (e) { META.set(f.url, { error: String(e && e.message || e) }); }
   actions.render();
@@ -91,6 +151,7 @@ function metaBlock(f) {
   if (m.error) return h('p', { class: 'note', text: t('Could not read the file: {error}', { error: m.error }) });
   const rows = [[t('File format'), m.format !== 'unknown' ? m.format : null], [t('Size'), m.bytes ? size(m.bytes) : null], [t('Content type'), m.type], [t('Last modified'), m.modified], ['SHA-256', m.hash]].concat(m.fields.map(([k, v]) => [t(k), v]));
   return h('section', { class: 'meta' }, h('h3', { text: t('Metadata') }),
+    m.preview ? h('p', { class: 'fontprev', style: 'font-family:"' + m.preview + '"', text: 'The quick brown fox jumps over the lazy dog 0123456789 — Съешь же ещё этих мягких французских булок' }) : null,
     m.paths && m.paths.length ? h('p', { class: 'note', text: t('Paths from the author\'s computer: {paths}', { paths: m.paths.join(', ') }) }) : null,
     m.fields.length || m.bytes ? h('dl', { class: 'kv' }, rows.filter(([, v]) => v).flatMap(([k, v]) => [h('dt', { text: k }), h('dd', { class: 'mono', text: v })])) : h('p', { class: 'muted', text: t('No metadata found') }));
 }
@@ -155,13 +216,19 @@ function viewer(ctx, f, fx) {
   if (f.text == null) {
     box.append(h('dl', { class: 'kv' }, h('dt', { text: t('Type') }), h('dd', { text: f.type }), h('dt', { text: t('Loaded by') }), h('dd', { text: f.initiator || '—' }), f.bytes ? h('dt', { text: t('Size') }) : null, f.bytes ? h('dd', { text: size(f.bytes) }) : null));
     const live = real && !/fetch|xmlhttprequest|beacon/.test(f.initiator || ''); // fetch/XHR responses are API calls: not repeated
-    if (f.type !== 'image') box.append(h('p', { class: 'note', text: live ? t('Routelark does not download this file on its own: it reads only JS, source maps and service files. The Read metadata button requests it once more') : t('Routelark does not download this file: it reads only JS, source maps and service files. The page itself loaded it') }));
+    box.append(h('p', { class: 'note', text: whyMissing(app, store, f) }));
+    const ld = LOADS.get(f.url), can = live && TEXTY.test(f.type) && canLoad(app, store, f) && !(ld && ld.loading);
+    if (ld && ld.loading) box.append(h('p', { class: 'muted', text: t('Loading the file…') }));
+    if (ld && ld.error) box.append(h('p', { class: 'note', text: t('Could not read the file: {error}', { error: t(ld.error) }) }));
+    // The browser plays media itself; preload none: nothing is requested until the user presses play
+    if (live && f.type === 'media' && canLoad(app, store, f)) box.append(h('div', { class: 'imgbox' }, h(/\.(?:mp3|ogg|oga|wav|m4a|aac|flac|opus)(?:$|\?)/i.test(f.url) ? 'audio' : 'video', { src: f.url, controls: true, preload: 'none', referrerpolicy: 'no-referrer' })));
     // The browser itself shows the image via an img tag (usually from cache: the page already loaded it); scripts in it do not run
-    if (live && f.type === 'image') box.append(h('div', { class: 'imgbox' }, h('img', { src: f.url, alt: f.url.replace(/^.*\//, ''), referrerpolicy: 'no-referrer', loading: 'lazy' })));
+    if (live && f.type === 'image' && canLoad(app, store, f)) box.append(h('div', { class: 'imgbox' }, h('img', { src: f.url, alt: f.url.replace(/^.*\//, ''), referrerpolicy: 'no-referrer', loading: 'lazy' })));
     if (live) box.append(h('div', { class: 'acts' },
       h('a', { class: 'btn', href: f.url, target: '_blank', rel: 'noopener noreferrer', text: t('Open in new tab') }),
       h('a', { class: 'btn', href: f.url, download: f.url.replace(/[?#].*$/, '').replace(/^.*\//, '') || 'file', text: t('Download') }),
-      button(t('Read metadata'), () => readMeta(f, actions))));
+      can ? button(t('Load file'), () => loadText(f, ctx), 'pri') : null,
+      button(t('Read metadata'), () => readMeta(f, ctx))));
     const mb = metaBlock(f); if (mb) box.append(mb); // append(null) would print the text "null"
     return box;
   }

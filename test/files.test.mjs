@@ -228,3 +228,12 @@ test('QA 03/04: индексная карта, исходники пакетов
   assert.deepEqual(ty('phone +7 (912) 345-67-89'), ['phone:0']);
   assert.deepEqual(ty('card: "4000 0000 0000 0002"'), ['card:0']);
 });
+
+test('file types: audio/video, YAML and CSV as text, SVG as image', async () => {
+  const { fileType } = await import('../src/core/files.js');
+  assert.equal(fileType('https://a.test/v/intro.mp4'), 'media');
+  assert.equal(fileType('https://a.test/s.mp3?x=1'), 'media');
+  assert.equal(fileType('https://a.test/openapi.yaml'), 'text');
+  assert.equal(fileType('https://a.test/data.csv'), 'text');
+  assert.equal(fileType('https://a.test/logo.svg'), 'image');
+});

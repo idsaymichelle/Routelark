@@ -103,3 +103,10 @@ test('QA Wave 5: CLNT-04 только для перенаправлений, ш�
   s.addTech({ name: 'jQuery', version: '3.4.0' }, PAGE + 'a.js');
   assert.match(bountyReport(s, s.list().filter((f) => f.kind === 'tech'), {}), /Check the library version/);
 });
+
+test('a placeholder string gets its RU text after {n} is filled in', async () => {
+  const { setLang, t } = await import('../src/i18n.js');
+  setLang('ru');
+  assert.equal(t('{n} static findings are not listed in this report', { n: 3 }), 'Статических находок не показано в отчёте: 3');
+  setLang('en');
+});

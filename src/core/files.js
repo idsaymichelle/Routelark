@@ -1,15 +1,16 @@
 // Site files for the explorer: type, minified-code formatting, search. Pure functions, no DOM.
 
-const EXT = { js: 'js', mjs: 'js', cjs: 'js', jsx: 'js', ts: 'js', tsx: 'js', vue: 'js', svelte: 'js', map: 'map', json: 'json', webmanifest: 'json', html: 'html', htm: 'html', css: 'css', scss: 'css', less: 'css', xml: 'xml', svg: 'xml', txt: 'text', md: 'text' };
-const IMG = /\.(?:png|jpe?g|gif|webp|avif|ico|bmp)$/i, FONT = /\.(?:woff2?|ttf|otf|eot)$/i;
+const EXT = { js: 'js', mjs: 'js', cjs: 'js', jsx: 'js', ts: 'js', tsx: 'js', vue: 'js', svelte: 'js', map: 'map', json: 'json', webmanifest: 'json', html: 'html', htm: 'html', css: 'css', scss: 'css', less: 'css', xml: 'xml', svg: 'xml', txt: 'text', md: 'text', yaml: 'text', yml: 'text', csv: 'text', tsv: 'text' };
+const IMG = /\.(?:png|jpe?g|gif|webp|avif|ico|bmp)$/i, FONT = /\.(?:woff2?|ttf|otf|eot)$/i, MEDIA = /\.(?:mp4|webm|mov|m4v|ogv|mp3|ogg|oga|wav|m4a|aac|flac|opus)$/i;
 
-// Type by URL and response header: js, map, json, html, css, xml, text, image, font, wasm, other
+// Type by URL and response header: js, map, json, html, css, xml, text, image, font, media, wasm, other
 export function fileType(url, contentType) {
   const hp = String(url).split('#'), path = (hp.length > 1 && /\.[a-z0-9]+$/i.test(hp[hp.length - 1]) ? hp[hp.length - 1] : hp[0]).split('?')[0] /* map#src/a.ts is a file from the map, otherwise # is just an anchor */, ext = (/\.([a-z0-9]+)$/i.exec(path) || [])[1];
   if (/\.svg$/i.test(path)) return 'image'; // SVG counts as an image for the "Images" filter
   if (ext && EXT[ext.toLowerCase()]) return EXT[ext.toLowerCase()];
   if (IMG.test(path)) return 'image';
   if (FONT.test(path)) return 'font';
+  if (MEDIA.test(path)) return 'media';
   if (/\.wasm$/i.test(path)) return 'wasm';
   const ct = String(contentType || '');
   if (/javascript|ecmascript/.test(ct)) return 'js';
