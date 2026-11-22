@@ -24,4 +24,5 @@ First public release.
 - Every launch starts in a Quiet mode with no requests of its own; a switch in the header turns on the Full scan.
 - QA pass on OWASP Juice Shop (313 findings by 34 testers): masking leaks in custom rules, PEM bodies, HAR query tokens and report drafts closed; scanner lists keep to the scanned site; Stop no longer overwrites history; ReDoS-prone patterns rewritten; fewer false positives in secrets, headers, Web3, infra and code checks; more libraries in Stack; keyboard focus, contrast and screen-reader fixes; the overview total now counts site findings only (no static files or third-party hosts).
 - The local test server shows a live request log at `/__log`, so you can see a scan from the site's side.
+- Files: any text file the page loaded opens with **Load file** (one GET on click, also in Quiet mode); each missing file says why it was not downloaded; audio, video and font previews.
 - English interface with a Russian switch (the default follows the browser), a step-by-step Safari guide.
